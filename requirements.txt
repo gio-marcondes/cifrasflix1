@@ -1,0 +1,10 @@
+Flask
+requests
+beautifulsoup4
+demucs
+torch
+torchaudio
+librosa
+numpy
+soundfile
+yt-dlp
