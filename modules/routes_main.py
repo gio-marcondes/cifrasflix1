@@ -61,15 +61,21 @@ def home():
     dashboard = home_dashboard_data(c)
     conn.close()
 
-    principais = [
-        ("Music Genius", "Analise acordes, player e letra com traducao em um fluxo unico.", "/mp3detect", "Abrir Music Genius"),
-        ("Masterizacao", "Carregue audio e compare presets de masterizacao com preview imediato.", "/masterizacao", "Abrir Masterizacao"),
-        ("CifraFlix", "Explore o acervo de musicas e abra as cifras em modo player.", "/flix-play", "Abrir CifraFlix"),
-        ("Treinar Piano", "Pratique notas e acordes com o modulo de treino interativo.", "/treinar/", "Treinar agora"),
-        ("Separador de Audio", "Separe trilhas e avance em analises de arranjo e estudo.", "/separar-audio", "Separar audio"),
-        ("Cifras", "Atualize e sincronize o catalogo principal de cifras do sistema.", "/importar", "Gerenciar cifras"),
-        ("Letras", "Consulte letras e traducoes conectadas ao catalogo musical.", "/mp3detect", "Abrir letras"),
-        ("Discografias", "Navegue pelos albuns por artista e organize sua biblioteca.", "/albuns", "Ver discografias"),
+    # Categorizando as ferramentas para maior clareza visual
+    ferramentas_estudio = [
+        ("FlixPlay", "Explore o acervo de músicas e abra as cifras em modo player.", "/flix-play", "Tocar agora"),
+        ("Music Genius", "Transcreva acordes de links do YouTube sincronizados.", "/mp3detect", "Analisar áudio"),
+        ("Separador de Áudio", "Isole vocais, bateria, baixo e instrumentos de qualquer música.", "/separar-audio", "Separar stems"),
+        ("Masterização IA", "Compare presets de masterização com preview imediato.", "/masterizacao", "Masterizar"),
+        ("Treinar Piano", "Pratique notas e acordes com o módulo de treino interativo.", "/treinar/", "Treinar")
+    ]
+
+    ferramentas_gerenciamento = [
+        ("Discografias", "Navegue pelos álbuns por artista e organize sua biblioteca.", "/albuns", "Ver álbuns"),
+        ("Músicas Favoritas", "Acesse rapidamente suas cifras marcadas com coração.", "/favoritos", "Ver favoritos"),
+        ("Importador TXT", "Sincronize e atualize o catálogo principal de cifras.", "/importar", "Importar"),
+        ("Atualizar Capas", "Faça o download e atualize imagens de artistas e álbuns.", "/atualizarfoto", "Atualizar"),
+        ("MusicBrainz", "Busque metadados avançados e edições externas de álbuns.", "/mb_album", "Caçar álbuns")
     ]
 
     html = header("CifrasFlix - Central")
@@ -77,16 +83,13 @@ def home():
     html += """
     <section class="dashboardHero">
         <div>
-            <p class="eyebrow">Central do sistema</p>
-            <h1>CifrasFlix Studio</h1>
-            <p class="heroCopy">Biblioteca, discografia, letras, capas e importadores em um fluxo unico.</p>
+            <p class="eyebrow">CifrasFlix Studio</p>
+            <h1>O seu hub musical definitivo</h1>
+            <p class="heroCopy">Pratique com cifras sincronizadas, separe trilhas com IA, masterize áudios e gerencie seu acervo em um só lugar.</p>
         </div>
         <div class="heroActions">
-            <a class="primaryAction glassBtn glassBtnImport" href="/importar">Importar cifras</a>
-            <a class="secondaryAction glassBtn glassBtnDiscography" href="/albuns">Ver discografia</a>
-            <a class="secondaryAction glassBtn glassBtnPiano" href="/treinar/">Treinar Piano</a>
-            <a class="secondaryAction glassBtn glassBtnFlix" href="/flix-play">Experimente o CifraFlix</a>
-            <a class="secondaryAction glassBtn glassBtnGenius" href="/mp3detect">MusicGenius</a>
+            <a class="primaryAction glassBtn glassBtnFlix" href="/flix-play">🎸 Abrir FlixPlay</a>
+            <a class="secondaryAction glassBtn glassBtnGenius" href="/mp3detect">🎧 Music Genius</a>
         </div>
     </section>
 
@@ -105,41 +108,39 @@ def home():
     html += """
     </section>
 
-    <section class="systemPanel promoPanel">
-        <div class="sectionHeader">
-            <div>
-                <p class="eyebrow promoEyebrow">Destaque</p>
-                <h2 class="promoTitle">Principais Ferramentas</h2>
-            </div>
-        </div>
-        <div class="moduleGrid">
-    """
-
-    for titulo, descricao, href, acao in principais:
-        html += f"""
-        <a class="moduleCard promoCard" href="{href}">
-            <strong>{titulo}</strong>
-            <span>{descricao}</span>
-            <em>{acao}</em>
-        </a>
-        """
-
-    html += """
-        </div>
-    </section>
-
     <section class="systemGrid">
         <div class="systemPanel">
             <div class="sectionHeader">
                 <div>
-                    <p class="eyebrow">Modulos</p>
-                    <h2>Ferramentas disponiveis</h2>
+                    <p class="eyebrow">Produção & Prática</p>
+                    <h2>Ferramentas de Estúdio</h2>
                 </div>
             </div>
             <div class="moduleGrid">
     """
 
-    for title, desc, href, action in dashboard["modules"]:
+    for title, desc, href, action in ferramentas_estudio:
+        html += f"""
+        <a class="moduleCard promoCard" href="{href}">
+            <strong>{title}</strong>
+            <span>{desc}</span>
+            <em>{action}</em>
+        </a>
+        """
+
+    html += """
+            </div>
+
+            <div class="sectionHeader" style="margin-top: 32px;">
+                <div>
+                    <p class="eyebrow">Administração</p>
+                    <h2>Gerenciamento do Acervo</h2>
+                </div>
+            </div>
+            <div class="moduleGrid">
+    """
+
+    for title, desc, href, action in ferramentas_gerenciamento:
         html += f"""
         <a class="moduleCard" href="{href}">
             <strong>{title}</strong>
@@ -168,7 +169,7 @@ def home():
             <a class="rankingItem" href="/artista/{slug}">
                 <b>{index}</b>
                 <span>{nome}</span>
-                <small>{fmt_int(total_views)} views - {fmt_int(total_musicas)} musicas</small>
+                <small>{fmt_int(total_views)} views - {fmt_int(total_musicas)} cifras</small>
             </a>
             """
     else:
@@ -182,8 +183,8 @@ def home():
     <section class="systemPanel">
         <div class="sectionHeader">
             <div>
-                <p class="eyebrow">Biblioteca</p>
-                <h2>Artistas</h2>
+                <p class="eyebrow">Navegação</p>
+                <h2>Todos os Artistas</h2>
             </div>
             <span class="pageInfo">Pagina """ + f"{page} de {total_pages}" + """</span>
         </div>
@@ -330,17 +331,19 @@ def flix_play():
     }}
     .flixSearchBar input {{
         height: 46px;
-        border: 1px solid #d1d5db;
+            border: 1px solid var(--border);
         border-radius: 12px;
         padding: 0 14px;
         font-size: 15px;
+            background: var(--bg);
+            color: var(--text);
     }}
     .flixSearchBar button {{
         height: 46px;
         border-radius: 12px;
-        border: 1px solid #fdba74;
-        background: linear-gradient(135deg, #ffd29d, #ff9b47);
-        color: #2b1200;
+            border: 1px solid var(--accent);
+            background: var(--accent);
+            color: #fff;
         font-weight: 800;
         padding: 0 18px;
         cursor: pointer;
@@ -448,7 +451,7 @@ def flix_play():
     }}
     .flixAlbumName {{
         margin: 6px 0 0;
-        color: #64748b;
+            color: var(--muted);
         font-size: 13px;
     }}
     .flixCardLinks {{

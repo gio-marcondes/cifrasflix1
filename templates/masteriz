@@ -1,0 +1,538 @@
+{{ header_html|safe }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/masterizacao.css') }}">
+<style>
+    /* Estilos do Seletor de Workflow (Estilo Netflix Profiles) */
+    .workflow-selector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 75vh;
+        opacity: 1; /* Começa visível */
+        transition: opacity 0.4s ease-out;
+        animation: fadeInWorkflow 0.6s ease;
+    }
+    .workflow-header { text-align: center; margin-bottom: 50px; }
+    .workflow-header h1 { font-size: 3.5rem; margin: 0; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .workflow-header p { color: #888; font-size: 1.2rem; margin-top: 10px; }
+
+    .workflow-grid { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; }
+
+    .workflow-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 240px;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .workflow-avatar {
+        width: 180px;
+        height: 180px;
+        background: #1a1a1a;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        border: 4px solid transparent;
+        transition: border-color 0.2s, transform 0.2s;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .workflow-card:hover .workflow-avatar {
+        border-color: #e5e5e5;
+        transform: scale(1.05);
+    }
+
+    .workflow-card .icon { font-size: 80px; filter: grayscale(0.2); transition: filter 0.2s; }
+    .workflow-card:hover .icon { filter: grayscale(0); }
+    
+    .workflow-card .label { color: #808080; font-size: 1.4rem; font-weight: 600; transition: color 0.2s; }
+    .workflow-card:hover .label { color: #fff; }
+    .workflow-card .description { color: #555; font-size: 0.9rem; text-align: center; margin-top: 12px; line-height: 1.4; transition: color 0.2s; }
+    .workflow-card:hover .description { color: #aaa; }
+
+    @keyframes fadeInWorkflow {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Classe aplicada via JS ao ativar o workspace */
+    .workflow-active {
+        animation: fadeInWorkflow 0.8s ease forwards;
+    }
+    
+    #fileDropZone, #masterWorkspace {
+        display: none;
+    }
+
+    /* File Drop Zone Styles */
+    .file-drop-zone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 75vh;
+        border: 3px dashed #333;
+        border-radius: 20px;
+        margin: 40px auto;
+        max-width: 800px;
+        background-color: #1a1a1a;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .file-drop-zone.drag-over {
+        border-color: #39d7e6; /* Cor de destaque ao arrastar */
+        background-color: #2a2a2a;
+        box-shadow: 0 0 25px rgba(57, 215, 230, 0.4);
+    }
+
+    .drop-zone-content {
+        padding: 30px;
+    }
+
+    .drop-icon {
+        font-size: 80px;
+        color: #666;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .drop-message {
+        font-size: 2.2rem;
+        color: #fff;
+        margin: 0 0 15px 0;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .drop-or {
+        font-size: 1.1rem;
+        color: #888;
+        margin-bottom: 15px;
+    }
+
+    .drop-button {
+        background: linear-gradient(135deg, #39d7e6, #7c3aed); /* Gradiente de cores */
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 15px 30px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .drop-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0,0,0,0.4);
+    }
+
+    .plus-icon {
+        font-size: 1.8rem;
+        line-height: 1;
+    }
+
+    .drop-hint {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 25px;
+    }
+</style>
+
+<main class="masterShell">
+    <div id="workflowSelector" class="workflow-selector">
+        <div class="workflow-header">
+            <h1>O que vamos fazer hoje?</h1>
+            <p>Escolha o seu ponto de partida para processamento de áudio profissional.</p>
+        </div>
+        
+        <div class="workflow-grid">
+            <div class="workflow-card" onclick="selecionarWorkflow('mix')">
+                <div class="workflow-avatar"><span class="icon">✂️</span></div>
+                <span class="label">Separar Stems & Mixar</span>
+                <p class="description">Extraia Vocais, Bateria, Baixo e Instrumentos para criar sua própria mixagem.</p>
+            </div>
+
+            <div class="workflow-card" onclick="selecionarWorkflow('master')">
+                <div class="workflow-avatar"><span class="icon">✨</span></div>
+                <span class="label">Masterizar Música Final</span>
+                <p class="description">Aplique presets profissionais, EQ e ganho em sua track já finalizada.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input de arquivo invisível -->
+    <input type="file" id="masterFile" accept="audio/*" style="display:none;">
+
+    <!-- Novo File Drop Zone (Moises Style) -->
+    <div id="fileDropZone" class="file-drop-zone">
+        <div class="drop-zone-content">
+            <span class="drop-icon">📤</span>
+            <p class="drop-message">Arraste e solte seu arquivo de áudio aqui</p>
+            <p class="drop-or">ou</p>
+            <button type="button" class="drop-button" id="openFileBrowserBtn">
+                <span class="plus-icon">+</span> Selecionar arquivo
+            </button>
+            <p class="drop-hint">Formatos suportados: MP3, WAV, FLAC, M4A, OGG, AAC</p>
+        </div>
+    </div>
+
+    <div id="masterWorkspace">
+        <section class="masterHeroCard">
+        <div>
+            <p class="eyebrow">CifrasFlix Studio</p>
+            <h1>Masterizacao</h1>
+            <p>Carregue um audio, escolha uma sonoridade e compare o original com a master em tempo real.</p>
+        </div>
+        <div class="masterStatusCard">
+            <span>Status</span>
+            <strong id="masterStatus">Aguardando arquivo.</strong>
+        </div>
+    </section>
+
+    <section class="masterPanel">
+        <div class="topWorkspace">
+            <div class="uploadPanel">
+                <label class="fileDrop">
+                    <span>Arquivo selecionado:</span>
+                    <strong id="currentFileName" style="color:var(--accent)">Nenhum</strong>
+                </label>
+                <button id="masterUploadBtn" type="button" class="submitBtn">Carregar Audio</button>
+                <input type="hidden" id="jobIdField">
+            </div>
+
+            <div class="exportPanel">
+                <select id="masterExportFormat" class="formatSelect" aria-label="Formato de exportacao">
+                    <option value="wav" selected>WAV</option>
+                    <option value="mp3">MP3</option>
+                </select>
+                <button id="masterExportBtn" type="button" class="exportBtn">Exportar</button>
+            </div>
+        </div>
+
+        <div id="masterProgressContainer" class="progress-container">
+            <div id="masterProgressBar" class="progress-bar"></div>
+        </div>
+
+        <div class="coreLayout">
+            <section class="playerPanel" aria-label="Player de masterizacao">
+                <audio id="masterAudio" preload="metadata"></audio>
+
+                <div class="transportTop">
+                    <button id="masterPlayBtn" type="button" class="transportBtn" aria-label="Play ou pause">▶</button>
+                    <span id="masterModeBadge" class="modeBadge">Original</span>
+                </div>
+
+                <div class="transportBottom">
+                    <span id="masterCurrent" class="timeSide">0:00</span>
+                    <input id="masterSeek" type="range" min="0" max="100" value="0" step="0.1" class="seekBar" aria-label="Posicao do audio" />
+                    <span id="masterDuration" class="timeSide">0:00</span>
+                </div>
+
+                <div class="abComparisonContainer">
+                    <span class="abLabel">Comparacao A/B</span>
+                    <div class="abToggleGroup">
+                        <button id="abBtnA" type="button" class="abBtn active" data-source="original">A Original</button>
+                        <button id="abBtnB" type="button" class="abBtn" data-source="mastered" disabled>B Master</button>
+                    </div>
+                </div>
+
+                <div class="masterVolumePanel">
+                    <label for="masterVolume">
+                        <span>Volume geral</span>
+                        <strong id="masterVolumeValue">100%</strong>
+                    </label>
+                    <input id="masterVolume" type="range" min="0" max="200" value="100" step="1">
+                </div>
+
+                <div class="meterPanel">
+                    <div class="meterItem">
+                        <span>LUFS</span>
+                        <strong id="lufsValue">--</strong>
+                    </div>
+                    <div class="meterItem">
+                        <span>Peak</span>
+                        <strong id="peakValue">--</strong>
+                    </div>
+                    <div class="meterItem">
+                        <span>RMS</span>
+                        <strong id="rmsValue">--</strong>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="quickPanel" aria-label="Presets e controles rapidos">
+                <div class="panelHeader">
+                    <span>Som rapido</span>
+                    <button id="autoLufsBtn" type="button" class="ghostBtn">-14 LUFS</button>
+                </div>
+
+                <div class="presetGrid">
+                    <button type="button" class="presetBtn" data-mode="rock">Rock</button>
+                    <button type="button" class="presetBtn" data-mode="pop">Pop</button>
+                    <button type="button" class="presetBtn" data-mode="radio">Radio</button>
+                    <button type="button" class="presetBtn" data-mode="lufs14">14 LUFS</button>
+                    <button type="button" class="presetBtn" data-mode="spotify">Spotify</button>
+                    <button type="button" class="presetBtn" data-mode="vocalverb">Voz Reverb</button>
+                    <button type="button" class="presetBtn" data-mode="vocalverb_extreme">Reverb Extreme</button>
+                    <button type="button" class="presetBtn" data-mode="vocalplate">Voz Plate</button>
+                </div>
+
+                <div class="mixControls">
+                    <div class="mixGroup" id="compressionGroup">
+                        <span>Compressao</span>
+                        <button type="button" class="ctlBtn" data-comp="baixa">Baixa</button>
+                        <button type="button" class="ctlBtn is-on" data-comp="media">Media</button>
+                        <button type="button" class="ctlBtn" data-comp="alta">Alta</button>
+                    </div>
+                    <div class="mixGroup" id="voiceGroup">
+                        <span>Voz</span>
+                        <button type="button" class="ctlBtn" data-voice="tras">Tras</button>
+                        <button type="button" class="ctlBtn is-on" data-voice="central">Central</button>
+                        <button type="button" class="ctlBtn" data-voice="frente">Frente</button>
+                    </div>
+                    <div class="mixGroup">
+                        <span>Instrumental</span>
+                        <button type="button" id="noDrumsBtn" class="ctlBtn">Sem Bateria</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <section class="artistStrip" aria-label="Presets de artista">
+            <div>
+                <span>Vibes</span>
+                <p>Presets com assinatura de mixagem.</p>
+            </div>
+            <div class="vibe-container">
+                <button onclick="aplicarVibe(event, 'queen')" class="btn-vibe queen-vibe" type="button">Vibe Queen</button>
+                <button onclick="aplicarVibe(event, 'arctic_monkeys')" class="btn-vibe arctic-vibe" type="button">Vibe Arctic Monkeys</button>
+                <button onclick="aplicarVibe(event, 'led_zeppelin')" class="btn-vibe zep-vibe" type="button">Vibe Led Zeppelin</button>
+            </div>
+        </section>
+
+        <section class="toolRail">
+            <div class="iaCard">
+                <div>
+                    <span>Analise inteligente</span>
+                    <p id="iaStatusText">Detecte genero, saude da mix e sugestao de preset.</p>
+                </div>
+                <button type="button" id="btnIaAnalise" class="submitBtn" onclick="analisarMusicaIA()">Analisar Musica</button>
+                <div id="badgeIaDetectado" class="modeBadge successBadge" style="display:none;">Detectado: -</div>
+            </div>
+
+            <div id="histograma-container" class="analysisPanel" style="display:none;">
+                <div class="sectionTitle">Histograma de Frequencias</div>
+                <div class="freq-cards">
+                    <div class="freq-card">
+                        <strong>Graves</strong>
+                        <span id="gravePct">0%</span>
+                    </div>
+                    <div class="freq-card">
+                        <strong>Medios</strong>
+                        <span id="medioPct">0%</span>
+                    </div>
+                    <div class="freq-card">
+                        <strong>Agudos</strong>
+                        <span id="agudoPct">0%</span>
+                    </div>
+                    <div id="musicHealth" class="freq-card">
+                        <strong>Health</strong>
+                        <span>Mix <b id="mixScore"></b></span>
+                        <span>Master <b id="masterScore"></b></span>
+                        <span>Spotify <b id="spotifyScore"></b></span>
+                    </div>
+                </div>
+                <div id="diagnosticoIA"></div>
+            </div>
+        </section>
+
+        <section class="advancedStack">
+            <details class="advancedPanel" open>
+                <summary>
+                    <span>EQ e Espectro</span>
+                    <small>Equalizacao, medidores e visualizacao</small>
+                </summary>
+
+                <div class="eqPanel">
+                    <div class="eqTop">
+                        <strong>EQ Manual em Tempo Real</strong>
+                        <div class="eqActions">
+                            <button type="button" id="eqPowerBtn" class="eqBtn on">EQ ON</button>
+                            <button type="button" id="eqResetBtn" class="eqBtn">Flat</button>
+                        </div>
+                    </div>
+                    <div id="eqGrid" class="eqGrid"></div>
+                </div>
+
+                <div class="spectrumPanel">
+                    <div class="spectrumModes">
+                        <span>Modo do espectro</span>
+                        <button type="button" class="ctlBtn is-on" onclick="mudarModoEspectro('bars')">Barras FFT</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('line')">Linha</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('spectrogram')">Espectrograma</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('waterfall')">Waterfall</button>
+                    </div>
+                    <div id="spectrumContainer" class="spectrumContainer">
+                        <canvas id="spectrumCanvas" width="800" height="220"></canvas>
+                        <div id="spectrumTooltip" class="spectrumTooltip"></div>
+                    </div>
+                    <canvas id="lufsHistory" width="500" height="120" class="lufsHistory"></canvas>
+
+                    <div class="viewSettingsPanel">
+                        <div class="sectionTitle">Configuracoes de visualizacao</div>
+                        <div class="settingsGrid">
+                            <div class="settingGroup">
+                                <label>Tipo de visualizacao</label>
+                                <select id="settingSelectMode" class="formatSelect" onchange="mudarModoEspectro(this.value)">
+                                    <option value="bars" selected>Barras de frequencia</option>
+                                    <option value="line">Linha de frequencia</option>
+                                    <option value="spectrogram">Espectrograma colorido</option>
+                                    <option value="waterfall">Waterfall</option>
+                                </select>
+                            </div>
+                            <div class="settingGroup">
+                                <label>Tamanho da FFT <span id="hzBinBadge" class="miniBadge">-- Hz/bin</span></label>
+                                <select id="settingFftSize" class="formatSelect">
+                                    <option value="512">512</option>
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4048">4096</option>
+                                    <option value="8192">8192</option>
+                                </select>
+                            </div>
+                            <div class="settingGroup">
+                                <label>Suavizacao <span id="smoothingValueBadge" class="miniBadge">0.75</span></label>
+                                <input id="settingSmoothing" type="range" min="0.0" max="0.95" step="0.01" value="0.75" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="advancedPanel">
+                <summary>
+                    <span>Stems</span>
+                    <small>Separacao e mixer por faixa</small>
+                </summary>
+
+                <button id="btnSepararStems" type="button" class="secondaryBtn">Separar Stems</button>
+                <div id="stemsArea" class="masterStemsMixer" style="display:none">
+                    <div class="masterStemsHeader">
+                        <h3>Stems Extraidos</h3>
+                        <span id="stemsCountBadge" class="modeBadge">0 faixas</span>
+                    </div>
+                    <div class="stem-grid" id="masterStemGrid">
+                        <div class="master-playhead-hit" id="masterStemPlayheadHit" aria-hidden="true"></div>
+                        <div class="master-playhead" id="masterStemPlayhead"></div>
+                    </div>
+
+                    <h3>Stems Extraidos</h3>
+                    <div class="stem-card">
+                        <h4>Vocais</h4>
+                        <audio id="vocalPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Bateria</h4>
+                        <audio id="drumsPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Baixo</h4>
+                        <audio id="bassPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Outros</h4>
+                        <audio id="otherPlayer" controls></audio>
+                    </div>
+                </div>
+            </details>
+
+            <details class="advancedPanel">
+                <summary>
+                    <span>Notas e Pitch</span>
+                    <small>Afinador, tom, BPM e Camelot</small>
+                </summary>
+
+                <div class="pitchPanel">
+                    <div class="piano-container">
+                        <div class="piano-keyboard">
+                            <div class="piano-key white-key" data-note="C">C</div>
+                            <div class="piano-key white-key" data-note="D">D</div>
+                            <div class="piano-key white-key" data-note="E">E</div>
+                            <div class="piano-key white-key" data-note="F">F</div>
+                            <div class="piano-key white-key" data-note="G">G</div>
+                            <div class="piano-key white-key" data-note="A">A</div>
+                            <div class="piano-key white-key" data-note="B">B</div>
+                            <div class="piano-key black-key key-cs" data-note="C#">C#</div>
+                            <div class="piano-key black-key key-ds" data-note="D#">D#</div>
+                            <div class="piano-key black-key key-fs" data-note="F#">F#</div>
+                            <div class="piano-key black-key key-gs" data-note="G#">G#</div>
+                            <div class="piano-key black-key key-as" data-note="A#">A#</div>
+                        </div>
+                    </div>
+
+                    <div class="pitchStats">
+                        <div>
+                            <span>Presenca harmonica</span>
+                            <strong id="pitchConfidenceText">0%</strong>
+                        </div>
+                        <div class="confidenceTrack">
+                            <div id="pitchConfidenceBar"></div>
+                        </div>
+                    </div>
+
+                    <div class="pitchReadout">
+                        <strong id="lblPitchNota">--</strong>
+                        <span id="lblPitchHz">0.00 Hz</span>
+                    </div>
+
+                    <div class="centsMeter">
+                        <div id="pitchCentsPointer"></div>
+                    </div>
+                </div>
+
+                <div class="tonalPanel">
+                    <button type="button" id="btnDetectarTom" class="submitBtn" onclick="detectarTomEPitch()">Analisar Tom e Pitch</button>
+
+                    <div id="panelResultadosTom" class="tonalResults" style="display:none;">
+                        <div class="sectionTitle">Resultados de deteccao</div>
+                        <div class="tonalGrid">
+                            <div class="tonalMetric main">
+                                <strong id="lblTomDetectado">--</strong>
+                                <span>Tom detectado</span>
+                            </div>
+                            <div class="tonalMetric">
+                                <strong id="lblBpmDetectado">--</strong>
+                                <span>BPM</span>
+                            </div>
+                            <div class="tonalMetric accentMetric">
+                                <strong id="lblCamelotDetectado">--</strong>
+                                <span>Camelot</span>
+                            </div>
+                        </div>
+                        <div class="tonalTextGrid">
+                            <div>
+                                <span>Transicoes e tons semelhantes</span>
+                                <div id="lblTonsSemelhantes">--</div>
+                            </div>
+                            <div>
+                                <span>Acordes permitidos</span>
+                                <div id="lblAcordesPossiveis">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/masterizacao.js') }}"></script>
+</main>

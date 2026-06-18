@@ -1,369 +1,544 @@
 {{ header_html|safe }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/masterizacao.css') }}">
+
+
+
+<style>
+    /* Estilos do Seletor de Workflow (Estilo Netflix Profiles) */
+    .workflow-selector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 75vh;
+        opacity: 1; /* Começa visível */
+        transition: opacity 0.4s ease-out;
+        animation: fadeInWorkflow 0.6s ease;
+    }
+    .workflow-header { text-align: center; margin-bottom: 50px; }
+    .workflow-header h1 { font-size: 3.5rem; margin: 0; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .workflow-header p { color: #888; font-size: 1.2rem; margin-top: 10px; }
+
+    .workflow-grid { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; }
+
+    .workflow-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 240px;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .workflow-avatar {
+        width: 180px;
+        height: 180px;
+        background: #1a1a1a;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        border: 4px solid transparent;
+        transition: border-color 0.2s, transform 0.2s;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .workflow-card:hover .workflow-avatar {
+        border-color: #e5e5e5;
+        transform: scale(1.05);
+    }
+
+    .workflow-card .icon { font-size: 80px; filter: grayscale(0.2); transition: filter 0.2s; }
+    .workflow-card:hover .icon { filter: grayscale(0); }
+    
+    .workflow-card .label { color: #808080; font-size: 1.4rem; font-weight: 600; transition: color 0.2s; }
+    .workflow-card:hover .label { color: #fff; }
+    .workflow-card .description { color: #555; font-size: 0.9rem; text-align: center; margin-top: 12px; line-height: 1.4; transition: color 0.2s; }
+    .workflow-card:hover .description { color: #aaa; }
+
+    @keyframes fadeInWorkflow {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Classe aplicada via JS ao ativar o workspace */
+    .workflow-active {
+        animation: fadeInWorkflow 0.8s ease forwards;
+    }
+    
+    #fileDropZone, #masterWorkspace {
+        display: none;
+    }
+
+    /* File Drop Zone Styles */
+    .file-drop-zone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 75vh;
+        border: 3px dashed #333;
+        border-radius: 20px;
+        margin: 40px auto;
+        max-width: 800px;
+        background-color: #1a1a1a;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .file-drop-zone.drag-over {
+        border-color: #39d7e6; /* Cor de destaque ao arrastar */
+        background-color: #2a2a2a;
+        box-shadow: 0 0 25px rgba(57, 215, 230, 0.4);
+    }
+
+    .drop-zone-content {
+        padding: 30px;
+    }
+
+    .drop-icon {
+        font-size: 80px;
+        color: #666;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .drop-message {
+        font-size: 2.2rem;
+        color: #fff;
+        margin: 0 0 15px 0;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .drop-or {
+        font-size: 1.1rem;
+        color: #888;
+        margin-bottom: 15px;
+    }
+
+    .drop-button {
+        background: linear-gradient(135deg, #39d7e6, #7c3aed); /* Gradiente de cores */
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 15px 30px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .drop-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0,0,0,0.4);
+    }
+
+    .plus-icon {
+        font-size: 1.8rem;
+        line-height: 1;
+    }
+
+    .drop-hint {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 25px;
+    }
+</style>
+
 <main class="masterShell">
-        <section class="masterHeroCard">
-            <div>
-                <p class="eyebrow">CifrasFlix Studio</p>
-                <h1>Masterizacao</h1>
-                <p>Mesmo visual do Separador: carregue um audio e ligue/desligue presets enquanto a musica toca.</p>
+    <div id="workflowSelector" class="workflow-selector">
+        <div class="workflow-header">
+            <h1>O que vamos fazer hoje?</h1>
+            <p>Escolha o seu ponto de partida para processamento de áudio profissional.</p>
+        </div>
+        
+        <div class="workflow-grid">
+            <div class="workflow-card" onclick="selecionarWorkflow('mix')">
+                <div class="workflow-avatar"><span class="icon">✂️</span></div>
+                <span class="label">Separar Stems & Mixar</span>
+                <p class="description">Extraia Vocais, Bateria, Baixo e Instrumentos para criar sua própria mixagem.</p>
             </div>
-            <div class="masterStatusCard">
-                <span>Status</span>
-                <strong id="masterStatus">Aguardando arquivo.</strong>
+
+            <div class="workflow-card" onclick="selecionarWorkflow('master')">
+                <div class="workflow-avatar"><span class="icon">✨</span></div>
+                <span class="label">Masterizar Música Final</span>
+                <p class="description">Aplique presets profissionais, EQ e ganho em sua track já finalizada.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input de arquivo invisível -->
+    <input type="file" id="masterFile" accept="audio/*" style="display:none;">
+
+    <!-- Novo File Drop Zone (Moises Style) -->
+    <div id="fileDropZone" class="file-drop-zone">
+        <div class="drop-zone-content">
+            <span class="drop-icon">📤</span>
+            <p class="drop-message">Arraste e solte seu arquivo de áudio aqui</p>
+            <p class="drop-or">ou</p>
+            <button type="button" class="drop-button" id="openFileBrowserBtn">
+                <span class="plus-icon">+</span> Selecionar arquivo
+            </button>
+            <p class="drop-hint">Formatos suportados: MP3, WAV, FLAC, M4A, OGG, AAC</p>
+        </div>
+    </div>
+
+    <div id="masterWorkspace">
+        <section class="masterHeroCard">
+        <div>
+            <p class="eyebrow">CifrasFlix Studio</p>
+            <h1>Masterizacao</h1>
+            <p>Carregue um audio, escolha uma sonoridade e compare o original com a master em tempo real.</p>
+        </div>
+        <div class="masterStatusCard">
+            <span>Status</span>
+            <strong id="masterStatus">Aguardando arquivo.</strong>
+        </div>
+    </section>
+
+    <section class="masterPanel">
+        <div class="topWorkspace">
+            <div class="uploadPanel">
+                <label class="fileDrop">
+                    <span>Arquivo selecionado:</span>
+                    <strong id="currentFileName" style="color:var(--accent)">Nenhum</strong>
+                </label>
+                <button id="masterUploadBtn" type="button" class="submitBtn">Carregar Audio</button>
+                <input type="hidden" id="jobIdField">
+            </div>
+
+            <div class="exportPanel">
+                <select id="masterExportFormat" class="formatSelect" aria-label="Formato de exportacao">
+                    <option value="wav" selected>WAV</option>
+                    <option value="mp3">MP3</option>
+                </select>
+                <button id="masterExportBtn" type="button" class="exportBtn">Exportar</button>
+            </div>
+        </div>
+
+        <div id="masterProgressContainer" class="progress-container">
+            <div id="masterProgressBar" class="progress-bar"></div>
+        </div>
+
+        <div class="coreLayout">
+            <section class="playerPanel" aria-label="Player de masterizacao">
+                <audio id="masterAudio" preload="metadata"></audio>
+
+                <div class="transportTop">
+                    <button id="masterPlayBtn" type="button" class="transportBtn" aria-label="Play ou pause">▶</button>
+                    <span id="masterModeBadge" class="modeBadge">Original</span>
+                </div>
+
+                <div class="transportBottom">
+                    <span id="masterCurrent" class="timeSide">0:00</span>
+                    <input id="masterSeek" type="range" min="0" max="100" value="0" step="0.1" class="seekBar" aria-label="Posicao do audio" />
+                    <span id="masterDuration" class="timeSide">0:00</span>
+                </div>
+
+                <div class="abComparisonContainer">
+                    <span class="abLabel">Comparacao A/B</span>
+                    <div class="abToggleGroup">
+                        <button id="abBtnA" type="button" class="abBtn active" data-source="original">A Original</button>
+                        <button id="abBtnB" type="button" class="abBtn" data-source="mastered" disabled>B Master</button>
+                    </div>
+                </div>
+
+                <div class="masterVolumePanel">
+                    <label for="masterVolume">
+                        <span>Volume geral</span>
+                        <strong id="masterVolumeValue">100%</strong>
+                    </label>
+                    <input id="masterVolume" type="range" min="0" max="200" value="100" step="1">
+                </div>
+
+                <div class="meterPanel">
+                    <div class="meterItem">
+                        <span>LUFS</span>
+                        <strong id="lufsValue">--</strong>
+                    </div>
+                    <div class="meterItem">
+                        <span>Peak</span>
+                        <strong id="peakValue">--</strong>
+                    </div>
+                    <div class="meterItem">
+                        <span>RMS</span>
+                        <strong id="rmsValue">--</strong>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="quickPanel" aria-label="Presets e controles rapidos">
+                <div class="panelHeader">
+                    <span>Som rapido</span>
+                    <button id="autoLufsBtn" type="button" class="ghostBtn">-14 LUFS</button>
+                </div>
+
+                <div class="presetGrid">
+                    <button type="button" class="presetBtn" data-mode="rock">Rock</button>
+                    <button type="button" class="presetBtn" data-mode="pop">Pop</button>
+                    <button type="button" class="presetBtn" data-mode="radio">Radio</button>
+                    <button type="button" class="presetBtn" data-mode="lufs14">14 LUFS</button>
+                    <button type="button" class="presetBtn" data-mode="spotify">Spotify</button>
+                    <button type="button" class="presetBtn" data-mode="vocalverb">Voz Reverb</button>
+                    <button type="button" class="presetBtn" data-mode="vocalverb_extreme">Reverb Extreme</button>
+                    <button type="button" class="presetBtn" data-mode="vocalplate">Voz Plate</button>
+                </div>
+
+                <div class="mixControls">
+                    <div class="mixGroup" id="compressionGroup">
+                        <span>Compressao</span>
+                        <button type="button" class="ctlBtn" data-comp="baixa">Baixa</button>
+                        <button type="button" class="ctlBtn is-on" data-comp="media">Media</button>
+                        <button type="button" class="ctlBtn" data-comp="alta">Alta</button>
+                    </div>
+                    <div class="mixGroup" id="voiceGroup">
+                        <span>Voz</span>
+                        <button type="button" class="ctlBtn" data-voice="tras">Tras</button>
+                        <button type="button" class="ctlBtn is-on" data-voice="central">Central</button>
+                        <button type="button" class="ctlBtn" data-voice="frente">Frente</button>
+                    </div>
+                    <div class="mixGroup">
+                        <span>Instrumental</span>
+                        <button type="button" id="noDrumsBtn" class="ctlBtn">Sem Bateria</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <section class="artistStrip" aria-label="Presets de artista">
+            <div>
+                <span>Vibes</span>
+                <p>Presets com assinatura de mixagem.</p>
+            </div>
+            <div class="vibe-container">
+                <button onclick="aplicarVibe(event, 'queen')" class="btn-vibe queen-vibe" type="button">Vibe Queen</button>
+                <button onclick="aplicarVibe(event, 'arctic_monkeys')" class="btn-vibe arctic-vibe" type="button">Vibe Arctic Monkeys</button>
+                <button onclick="aplicarVibe(event, 'led_zeppelin')" class="btn-vibe zep-vibe" type="button">Vibe Led Zeppelin</button>
             </div>
         </section>
 
-        <section class="masterPanel">
-            <div class="masterUploadRow">
-                <input id="masterFile" type="file" accept=".mp3,.wav,.flac,.m4a,.ogg,.aac,audio/*" />
-                <button id="masterUploadBtn" type="button" class="submitBtn">Carregar Audio</button>
-                <select id="masterExportFormat" class="formatSelect">
-                    <option value="wav" selected>Salvar WAV</option>
-                    <option value="mp3">Salvar MP3</option>
-                </select>
-                <input type="hidden" id="jobIdField">
-                <button id="masterExportBtn" type="button" class="exportBtn">Exportar</button>
+        <section class="toolRail">
+            <div class="iaCard">
+                <div>
+                    <span>Analise inteligente</span>
+                    <p id="iaStatusText">Detecte genero, saude da mix e sugestao de preset.</p>
+                </div>
+                <button type="button" id="btnIaAnalise" class="submitBtn" onclick="analisarMusicaIA()">Analisar Musica</button>
+                <div id="badgeIaDetectado" class="modeBadge successBadge" style="display:none;">Detectado: -</div>
             </div>
 
-            <div class="mixControls">
-                <div class="mixGroup" id="compressionGroup">
-                    <span>Compressao</span>
-                    <button type="button" class="ctlBtn" data-comp="baixa">Baixa</button>
-                    <button type="button" class="ctlBtn is-on" data-comp="media">Media</button>
-                    <button type="button" class="ctlBtn" data-comp="alta">Alta</button>
-                </div>
-                <div class="mixGroup" id="voiceGroup">
-                    <span>Voz</span>
-                    <button type="button" class="ctlBtn" data-voice="tras">Tras</button>
-                    <button type="button" class="ctlBtn is-on" data-voice="central">Central</button>
-                    <button type="button" class="ctlBtn" data-voice="frente">Frente</button>
-                </div>
-                <div class="mixGroup">
-                    <span>Instrumental</span>
-                    <button type="button" id="noDrumsBtn" class="ctlBtn">Sem Bateria</button>
-                </div>
-            </div>
-
-            <div class="presetGrid">
-                <button type="button" class="presetBtn" data-mode="rock">Rock</button>
-                <button type="button" class="presetBtn" data-mode="pop">Pop</button>
-                <button type="button" class="presetBtn" data-mode="radio">Radio</button>
-                <button type="button" class="presetBtn" data-mode="lufs14">14 LUFS</button>
-                <button id="autoLufsBtn">Ajustar para -14 LUFS</button>
-                <button type="button" class="presetBtn" data-mode="spotify">Spotify</button>
-                <button type="button" class="presetBtn" data-mode="vocalverb">Voz Reverb</button>
-                <button type="button" class="presetBtn" data-mode="vocalverb_extreme">Voz Reverb Extreme</button>
-                <button type="button" class="presetBtn" data-mode="vocalplate">Voz Plate</button>
-            </div>
-            <div class="mixGroup" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-color: rgba(124, 58, 237, 0.4); background: rgba(124, 58, 237, 0.05);">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <button type="button" id="btnIaAnalise" class="submitBtn" style="background: linear-gradient(135deg, #7c3aed, #39d7e6); color: white;" onclick="analisarMusicaIA()">
-                        ✨ Analisar Música por IA
-                    </button>
-                    <span id="iaStatusText" style="font-size: 12px; color: var(--muted);">Clique para detectar o gênero ideal</span>
-                </div>
-                <div id="badgeIaDetectado" class="modeBadge" style="display: none; background: rgba(0, 255, 136, 0.15); border-color: #00ff88; color: #00ff88; font-weight: bold;">
-                    Detectado: -
-                </div>
-            </div>
-            <div class="field">
-                <label style="font-weight: bold; display: block; margin-bottom: 8px;">Presets de Artistas (Vibes)</label>
-                <div class="vibe-container">
-                    <button onclick="aplicarVibe(event, 'queen')" class="btn-vibe queen-vibe">
-                        <span>👑</span> Vibe Queen
-                    </button>
-                    <button onclick="aplicarVibe(event, 'arctic_monkeys')" class="btn-vibe arctic-vibe">
-                        <span>🎸</span> Vibe Arctic Monkeys
-                    </button>
-                    <button onclick="aplicarVibe(event, 'led_zeppelin')" class="btn-vibe zep-vibe">
-                        <span>⚡</span> Vibe Led Zeppelin
-                    </button>
-                </div>
-            </div>
-
-            <div class="masterVolumePanel">
-                <label>
-                    Volume Geral
-                    <span id="masterVolumeValue">100%</span>
-                </label>
-
-                <input
-                    id="masterVolume"
-                    type="range"
-                    min="0"
-                    max="200"
-                    value="100"
-                    step="1"
-                >
-            </div>
-            <div id="masterProgressContainer" class="progress-container">
-                <div id="masterProgressBar" class="progress-bar"></div>
-            </div>
-            <div class="playerPanel">
-                    <audio id="masterAudio" preload="metadata"></audio>
-                    
-                    <div class="abComparisonContainer">
-                        <span class="abLabel">Comparação A/B:</span>
-                        <div class="abToggleGroup">
-                            <button id="abBtnA" type="button" class="abBtn active" data-source="original">[A] Original</button>
-                            <button id="abBtnB" type="button" class="abBtn" data-source="mastered" disabled>[B] Masterizado</button>
-                        </div>
-                    </div>
-
-                    <div class="transportTop">
-                        <button id="masterPlayBtn" type="button" class="transportBtn">▶</button>
-                        <span id="masterModeBadge" class="modeBadge">Original</span>
-                    </div>
-                    <div class="transportBottom">
-                        <span id="masterCurrent" class="timeSide">0:00</span>
-                        <input id="masterSeek" type="range" min="0" max="100" value="0" step="0.1" class="seekBar" />
-                        <span id="masterDuration" class="timeSide">0:00</span>
-                    </div>
-                </div>
-            
-             <div id="histograma-container" style="display:none;">
-                <h3>📈 Histograma de Frequências</h3>
-
-
+            <div id="histograma-container" class="analysisPanel" style="display:none;">
+                <div class="sectionTitle">Histograma de Frequencias</div>
                 <div class="freq-cards">
                     <div class="freq-card">
                         <strong>Graves</strong>
                         <span id="gravePct">0%</span>
                     </div>
-
                     <div class="freq-card">
-                        <strong>Médios</strong>
+                        <strong>Medios</strong>
                         <span id="medioPct">0%</span>
                     </div>
-
                     <div class="freq-card">
                         <strong>Agudos</strong>
                         <span id="agudoPct">0%</span>
                     </div>
-
-                    <div id="musicHealth">
-    <h3>🎵 Music Health Report</h3>
-
-    <div>Mix Score: <span id="mixScore"></span></div>
-    <div>Master Score: <span id="masterScore"></span></div>
-    <div>Spotify Score: <span id="spotifyScore"></span></div>
-</div>
-
-                </div>
-
-                <div id="diagnosticoIA"></div>
-            </div>   
-
-            <button id="btnSepararStems">
-    🎤 Separar Stems
-</button>
-<canvas id="lufsHistory" width="500" height="120"></canvas>
-            <div class="eqPanel">
-                <div class="eqTop">
-                    <strong>EQ Manual em Tempo Real</strong>
-                    <div class="eqActions">
-                        <button type="button" id="eqPowerBtn" class="eqBtn on">EQ ON</button>
-                        <button type="button" id="eqResetBtn" class="eqBtn">Flat</button>
+                    <div id="musicHealth" class="freq-card">
+                        <strong>Health</strong>
+                        <span>Mix <b id="mixScore"></b></span>
+                        <span>Master <b id="masterScore"></b></span>
+                        <span>Spotify <b id="spotifyScore"></b></span>
                     </div>
                 </div>
-                <div id="eqGrid" class="eqGrid"></div>
+                <div id="diagnosticoIA"></div>
             </div>
-            <div style="margin: 10px 0;">
-                <div class="mixGroup" style="margin-bottom: 10px; justify-content: center;">
-                    <span>Modo do Espectro:</span>
-                    <button type="button" class="ctlBtn is-on" onclick="mudarModoEspectro('bars')">Barras FFT</button>
-                    <button type="button" class="ctlBtn" onclick="mudarModoEspectro('line')">Linha de Frequência</button>
-                    <button type="button" class="ctlBtn" onclick="mudarModoEspectro('spectrogram')">Espectrograma Colorido</button>
-                    <button type="button" class="ctlBtn" onclick="mudarModoEspectro('waterfall')">Waterfall (Cachoeira)</button>
-                </div>
-                <div id="spectrumContainer" style="position: relative; width: 100%;">
-                    <canvas id="spectrumCanvas" width="800" height="220"></canvas>
-                    <div id="spectrumTooltip" style="position: absolute; display: none; background: #111827; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #39d7e6; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-family: monospace; z-index: 10;"></div>
-                </div>
-                <div class="viewSettingsPanel" style="margin-top: 15px; padding: 15px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(148, 163, 184, 0.12);">
-    <div style="font-size: 13px; font-weight: 600; color: #d9faff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        <span>⚙️</span> Configurações de visualização
-    </div>
-    <div id="stemsArea" class="masterStemsMixer" style="display:none">
-        <div class="masterStemsHeader">
-            <h3>Stems Extraidos</h3>
-            <span id="stemsCountBadge" class="modeBadge">0 faixas</span>
-        </div>
-        <div class="stem-grid" id="masterStemGrid">
-            <div class="master-playhead-hit" id="masterStemPlayheadHit" aria-hidden="true"></div>
-            <div class="master-playhead" id="masterStemPlayhead"></div>
-        </div>
-
-    <h3>🎛️ Stems Extraídos</h3>
-
-    <div class="stem-card">
-        <h4>🎤 Vocais</h4>
-        <audio id="vocalPlayer" controls></audio>
-    </div>
-
-    <div class="stem-card">
-        <h4>🥁 Bateria</h4>
-        <audio id="drumsPlayer" controls></audio>
-    </div>
-
-    <div class="stem-card">
-        <h4>🎸 Baixo</h4>
-        <audio id="bassPlayer" controls></audio>
-    </div>
-
-    <div class="stem-card">
-        <h4>🎹 Outros</h4>
-        <audio id="otherPlayer" controls></audio>
-    </div>
-
-</div>
-    <div class="settingsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-        <div class="settingGroup">
-            <label style="display: block; font-size: 11px; color: #8fa5b7; margin-bottom: 6px; text-transform: uppercase;">Tipo de visualização</label>
-            <select id="settingSelectMode" class="formatSelect" style="width: 100%; height: 38px;" onchange="mudarModoEspectro(this.value)">
-                <option value="bars" selected>Barras de frequência</option>
-                <option value="line">Linha de frequência</option>
-                <option value="spectrogram">Espectrograma colorido</option>
-                <option value="waterfall">Waterfall (Cachoeira)</option>
-            </select>
-        </div>
-
-        <div class="settingGroup">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label style="font-size: 11px; color: #8fa5b7; text-transform: uppercase;">Tamanho da FFT</label>
-                <span id="hzBinBadge" style="background: #021114; color: #39d7e6; border: 1px solid rgba(57, 215, 230, 0.4); font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 6px; font-family: monospace;">-- Hz/bin</span>
-            </div>
-            <select id="settingFftSize" class="formatSelect" style="width: 100%; height: 38px;">
-                <option value="512">512</option>
-                <option value="1024">1024</option>
-                <option value="2048" selected>2048</option>
-                <option value="4048">4096</option>
-                <option value="8192">8192</option>
-            </select>
-            <p style="margin: 4px 0 0 0; font-size: 11px; color: rgba(226, 232, 240, 0.45); line-height: 1.3;">FFT maior = melhor resolução de frequência, atualização mais lenta</p>
-        </div>
-
-        <div class="settingGroup">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label style="font-size: 11px; color: #8fa5b7; text-transform: uppercase;">Suavização</label>
-                <span id="smoothingValueBadge" style="background: #021114; color: #39d7e6; border: 1px solid rgba(57, 215, 230, 0.4); font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 6px; font-family: monospace;">0.75</span>
-            </div>
-            <input id="settingSmoothing" type="range" min="0.0" max="0.95" step="0.01" value="0.75" style="width: 100%; accent-color: #39d7e6; margin-top: 10px;" />
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #5b6bf5; margin-top: 4px; font-family: monospace;">
-                <span>0.0</span>
-                <span>0.5</span>
-                <span>0.95</span>
-            </div>
-        </div>
-    </div>
-</div>
-            </div>
-    <div class="viewSettingsPanel" style="margin-top: 20px; padding: 20px; border-radius: 22px;">
-    <div style="font-size: 14px; font-weight: 600; color: #d9faff; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-        <span>🎹</span> Notas e Pitch da Música em Tempo Real
-    </div>
-
-    <div class="piano-container" style="background: #111827; padding: 25px; border-radius: 16px; display: flex; justify-content: center; position: relative; margin-bottom: 15px; border: 1px solid rgba(148, 163, 184, 0.08);">
-        <div class="piano-keyboard" style="display: flex; position: relative; height: 120px;">
-            <div class="piano-key white-key" data-note="C" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">C</div>
-            <div class="piano-key white-key" data-note="D" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">D</div>
-            <div class="piano-key white-key" data-note="E" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">E</div>
-            <div class="piano-key white-key" data-note="F" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">F</div>
-            <div class="piano-key white-key" data-note="G" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">G</div>
-            <div class="piano-key white-key" data-note="A" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">A</div>
-            <div class="piano-key white-key" data-note="B" style="width: 40px; height: 120px; background: #fff; border: 1px solid #ccc; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 11px; color: #6b7280; padding-bottom: 8px; font-weight: bold; transition: background 0.1s;">B</div>
-
-            <div class="piano-key black-key" data-note="C#" style="width: 24px; height: 75px; background: #1f2937; position: absolute; left: 28px; z-index: 2; border-radius: 0 0 3px 3px; display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; padding-bottom: 6px; transition: background 0.1s;">C#</div>
-            <div class="piano-key black-key" data-note="D#" style="width: 24px; height: 75px; background: #1f2937; position: absolute; left: 68px; z-index: 2; border-radius: 0 0 3px 3px; display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; padding-bottom: 6px; transition: background 0.1s;">D#</div>
-            <div class="piano-key black-key" data-note="F#" style="width: 24px; height: 75px; background: #1f2937; position: absolute; left: 148px; z-index: 2; border-radius: 0 0 3px 3px; display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; padding-bottom: 6px; transition: background 0.1s;">F#</div>
-            <div class="piano-key black-key" data-note="G#" style="width: 24px; height: 75px; background: #1f2937; position: absolute; left: 188px; z-index: 2; border-radius: 0 0 3px 3px; display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; padding-bottom: 6px; transition: background 0.1s;">G#</div>
-            <div class="piano-key black-key" data-note="A#" style="width: 24px; height: 75px; background: #1f2937; position: absolute; left: 228px; z-index: 2; border-radius: 0 0 3px 3px; display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; padding-bottom: 6px; transition: background 0.1s;">A#</div>
-        </div>
-    </div>
-
-    <div style="margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #8fa5b7; margin-bottom: 4px; text-transform: uppercase;">
-            <span>Presença Harmônica</span>
-            <span id="pitchConfidenceText">0%</span>
-        </div>
-        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.04); border-radius: 6px; overflow: hidden; border: 1px solid rgba(148, 163, 184, 0.1);">
-            <div id="pitchConfidenceBar" style="width: 0%; height: 100%; background: #39d7e6; transition: width 0.1s ease;"></div>
-        </div>
-    </div>
-
-    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(148, 163, 184, 0.08); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 15px;">
-        <strong id="lblPitchNota" style="display: block; font-size: 42px; color: #39d7e6; font-family: 'Segoe UI', sans-serif;">--</strong>
-        <span id="lblPitchHz" style="font-size: 14px; color: #8fa5b7; font-family: monospace;">0.00 Hz</span>
-    </div>
-
-    <div>
-        <div style="position: relative; width: 100%; height: 16px; background: linear-gradient(90deg, #ff4444 0%, #ffaa00 30%, #00ff88 50%, #ffaa00 70%, #ff4444 100%); border-radius: 6px;">
-            <div id="pitchCentsPointer" style="position: absolute; top: -4px; left: 50%; width: 4px; height: 24px; background: #fff; border-radius: 2px; box-shadow: 0 0 8px rgba(255,255,255,0.8); transition: left 0.1s ease;"></div>
-            <div style="position: absolute; top: 0; left: 50%; width: 2px; height: 16px; background: rgba(0,0,0,0.4);"></div>
-        </div>
-    </div>
-</div>
-
-            <div class="meterPanel">
-                <div class="meterItem">
-                    <span>LUFS</span>
-                    <strong id="lufsValue">--</strong>
-                </div>
-
-                <div class="meterItem">
-                    <span>Peak</span>
-                    <strong id="peakValue">--</strong>
-                </div>
-
-                <div class="meterItem">
-                    <span>RMS</span>
-                    <strong id="rmsValue">--</strong>
-                </div>
-            </div>
-
-
-<div style="margin: 15px 0;">
-    <button type="button" id="btnDetectarTom" class="submitBtn" style="background: #0d254c; color: #eafcff; border: 1px solid rgba(57, 215, 230, 0.3); height: 38px; padding: 0 16px;" onclick="detectarTomEPitch()">
-        🎵 Analisar Tom e Pitch
-    </button>
-
-    <div id="panelResultadosTom" style="display: none; margin-top: 15px; padding: 15px; border-radius: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(148, 163, 184, 0.1);">
-        <div style="font-size: 12px; font-weight: bold; color: #39d7e6; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
-            🎵 Resultados de Detecção
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
-            <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 20px; text-align: center; border: 1px solid rgba(148, 163, 184, 0.08);">
-                <strong id="lblTomDetectado" style="display: block; font-size: 38px; color: #f5f7fb; font-family: 'Segoe UI', sans-serif;">--</strong>
-                <span style="font-size: 12px; color: #8fa5b7;">Tom Detectado</span>
-            </div>
-            <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 20px; text-align: center; border: 1px solid rgba(148, 163, 184, 0.08);">
-                <strong id="lblBpmDetectado" style="display: block; font-size: 32px; color: #f5f7fb;">--</strong>
-                <span style="font-size: 12px; color: #8fa5b7;">BPM</span>
-            </div>
-            <div style="background: rgba(124, 58, 237, 0.05); border-radius: 12px; padding: 20px; text-align: center; border: 1px solid rgba(124, 58, 237, 0.25);">
-                <strong id="lblCamelotDetectado" style="display: block; font-size: 32px; color: #a7fbff;">--</strong>
-                <span style="font-size: 12px; color: #7c3aed; font-weight: 600;">CAMELOT</span>
-            </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-            <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(148, 163, 184, 0.08);">
-                <span style="display: block; font-size: 11px; color: #8fa5b7; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">🔄 Transições e Tons Semelhantes</span>
-                <div id="lblTonsSemelhantes" style="font-size: 14px; color: #39d7e6; font-family: monospace; line-height: 1.5;">--</div>
-            </div>
-            
-            <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(148, 163, 184, 0.08);">
-                <span style="display: block; font-size: 11px; color: #8fa5b7; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">🎹 Acordes Permitidos (Campo Harmônico)</span>
-                <div id="lblAcordesPossiveis" style="font-size: 14px; color: #a7fbff; font-family: 'Segoe UI', sans-serif; letter-spacing: 1px; line-height: 1.5;">--</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-            
         </section>
 
-        <script src="{{ url_for('static', filename='js/masterizacao.js') }}"></script>
-    </main>
+        <section class="advancedStack">
+            <details class="advancedPanel" open>
+                <summary>
+                    <span>EQ e Espectro</span>
+                    <small>Equalizacao, medidores e visualizacao</small>
+                </summary>
+
+                <div class="eqPanel">
+                    <div class="eqTop">
+                        <strong>EQ Manual em Tempo Real</strong>
+                        <div class="eqActions">
+                            <button type="button" id="eqPowerBtn" class="eqBtn on">EQ ON</button>
+                            <button type="button" id="eqResetBtn" class="eqBtn">Flat</button>
+                        </div>
+                    </div>
+                    <div id="eqGrid" class="eqGrid"></div>
+                </div>
+
+                <div class="spectrumPanel">
+                    <div class="spectrumModes">
+                        <span>Modo do espectro</span>
+                        <button type="button" class="ctlBtn is-on" onclick="mudarModoEspectro('bars')">Barras FFT</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('line')">Linha</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('spectrogram')">Espectrograma</button>
+                        <button type="button" class="ctlBtn" onclick="mudarModoEspectro('waterfall')">Waterfall</button>
+                    </div>
+                    <div id="spectrumContainer" class="spectrumContainer">
+                        <canvas id="spectrumCanvas" width="800" height="220"></canvas>
+                        <div id="spectrumTooltip" class="spectrumTooltip"></div>
+                    </div>
+                    <canvas id="lufsHistory" width="500" height="120" class="lufsHistory"></canvas>
+
+                    <div class="viewSettingsPanel">
+                        <div class="sectionTitle">Configuracoes de visualizacao</div>
+                        <div class="settingsGrid">
+                            <div class="settingGroup">
+                                <label>Tipo de visualizacao</label>
+                                <select id="settingSelectMode" class="formatSelect" onchange="mudarModoEspectro(this.value)">
+                                    <option value="bars" selected>Barras de frequencia</option>
+                                    <option value="line">Linha de frequencia</option>
+                                    <option value="spectrogram">Espectrograma colorido</option>
+                                    <option value="waterfall">Waterfall</option>
+                                </select>
+                            </div>
+                            <div class="settingGroup">
+                                <label>Tamanho da FFT <span id="hzBinBadge" class="miniBadge">-- Hz/bin</span></label>
+                                <select id="settingFftSize" class="formatSelect">
+                                    <option value="512">512</option>
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4048">4096</option>
+                                    <option value="8192">8192</option>
+                                </select>
+                            </div>
+                            <div class="settingGroup">
+                                <label>Suavizacao <span id="smoothingValueBadge" class="miniBadge">0.75</span></label>
+                                <input id="settingSmoothing" type="range" min="0.0" max="0.95" step="0.01" value="0.75" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="advancedPanel">
+                <summary>
+                    <span>Stems</span>
+                    <small>Separacao e mixer por faixa</small>
+                </summary>
+
+                <button id="btnSepararStems" type="button" class="secondaryBtn">Separar Stems</button>
+                <div id="stemsArea" class="masterStemsMixer" style="display:none">
+                    <div class="masterStemsHeader">
+                        <h3>Stems Extraidos</h3>
+                        <span id="stemsCountBadge" class="modeBadge">0 faixas</span>
+                    </div>
+                    <div class="stem-grid" id="masterStemGrid">
+                        <div class="master-playhead-hit" id="masterStemPlayheadHit" aria-hidden="true"></div>
+                        <div class="master-playhead" id="masterStemPlayhead"></div>
+                    </div>
+
+                    <h3>Stems Extraidos</h3>
+                    <div class="stem-card">
+                        <h4>Vocais</h4>
+                        <audio id="vocalPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Bateria</h4>
+                        <audio id="drumsPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Baixo</h4>
+                        <audio id="bassPlayer" controls></audio>
+                    </div>
+                    <div class="stem-card">
+                        <h4>Outros</h4>
+                        <audio id="otherPlayer" controls></audio>
+                    </div>
+                </div>
+            </details>
+
+            <details class="advancedPanel">
+                <summary>
+                    <span>Notas e Pitch</span>
+                    <small>Afinador, tom, BPM e Camelot</small>
+                </summary>
+
+                <div class="pitchPanel">
+                    <div class="piano-container">
+                        <div class="piano-keyboard">
+                            <div class="piano-key white-key" data-note="C">C</div>
+                            <div class="piano-key white-key" data-note="D">D</div>
+                            <div class="piano-key white-key" data-note="E">E</div>
+                            <div class="piano-key white-key" data-note="F">F</div>
+                            <div class="piano-key white-key" data-note="G">G</div>
+                            <div class="piano-key white-key" data-note="A">A</div>
+                            <div class="piano-key white-key" data-note="B">B</div>
+                            <div class="piano-key black-key key-cs" data-note="C#">C#</div>
+                            <div class="piano-key black-key key-ds" data-note="D#">D#</div>
+                            <div class="piano-key black-key key-fs" data-note="F#">F#</div>
+                            <div class="piano-key black-key key-gs" data-note="G#">G#</div>
+                            <div class="piano-key black-key key-as" data-note="A#">A#</div>
+                        </div>
+                    </div>
+
+                    <div class="pitchStats">
+                        <div>
+                            <span>Presenca harmonica</span>
+                            <strong id="pitchConfidenceText">0%</strong>
+                        </div>
+                        <div class="confidenceTrack">
+                            <div id="pitchConfidenceBar"></div>
+                        </div>
+                    </div>
+
+                    <div class="pitchReadout">
+                        <strong id="lblPitchNota">--</strong>
+                        <span id="lblPitchHz">0.00 Hz</span>
+                    </div>
+
+                    <div class="centsMeter">
+                        <div id="pitchCentsPointer"></div>
+                    </div>
+                </div>
+
+                <div class="tonalPanel">
+                    <button type="button" id="btnDetectarTom" class="submitBtn" onclick="detectarTomEPitch()">Analisar Tom e Pitch</button>
+
+                    <div id="panelResultadosTom" class="tonalResults" style="display:none;">
+                        <div class="sectionTitle">Resultados de deteccao</div>
+                        <div class="tonalGrid">
+                            <div class="tonalMetric main">
+                                <strong id="lblTomDetectado">--</strong>
+                                <span>Tom detectado</span>
+                            </div>
+                            <div class="tonalMetric">
+                                <strong id="lblBpmDetectado">--</strong>
+                                <span>BPM</span>
+                            </div>
+                            <div class="tonalMetric accentMetric">
+                                <strong id="lblCamelotDetectado">--</strong>
+                                <span>Camelot</span>
+                            </div>
+                        </div>
+                        <div class="tonalTextGrid">
+                            <div>
+                                <span>Transicoes e tons semelhantes</span>
+                                <div id="lblTonsSemelhantes">--</div>
+                            </div>
+                            <div>
+                                <span>Acordes permitidos</span>
+                                <div id="lblAcordesPossiveis">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </section>
+    </div>
+<script src="{{ url_for('static', filename='js/audio_export.js') }}"></script>
+<script src="{{ url_for('static', filename='static/js/fx_rack.js') }}"></script>
+<script src="{{ url_for('static', filename='static/js/audio_visualizer.js') }}"></script>
+<script src="{{ url_for('static', filename='static/js/audio_ai_analysis.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/masterizacao.js') }}"></script>
+</main>

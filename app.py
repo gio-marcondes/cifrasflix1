@@ -1,41 +1,31 @@
-"""Ponto de entrada do CifrasFlix.
-
-O app original foi dividido em módulos por responsabilidade. Eles são
-carregados no mesmo namespace para preservar o comportamento das rotas e
-helpers que ainda compartilham muitos globals.
-"""
+from flask import Flask
 from pathlib import Path
-
+import os
 
 BASE_DIR = Path(__file__).resolve().parent
-MODULE_DIR = BASE_DIR / "modules"
-app = None
+app = Flask(__name__)
+app.secret_key = "ttx15_secret"
 
-MODULES = (
-    "config.py",
-    "layout.py",
-    "ui_helpers.py",
-    "routes_main.py",
-    "routes_misc.py",
-    "routes_treinar.py",
-    "routes_player.py",
-    "routes_separador.py",
-    "routes_master_state.py",
-    "routes_master_analysis.py",
-    "routes_master_audio.py",
-    "routes_master.py",
-    "routes_admin.py",
-    "routes_albums.py",
-    "routes_lyrics.py",
-    "routes_lyrics_api.py",
-)
+# Configurações de pastas
+UPLOAD_FOLDER = "static/capas"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+# Em vez de exec(), o ideal é importar Blueprints. 
+# Exemplo de como ficaria após converter routes_main.py em um Blueprint:
+# from modules.routes_main import main_bp
+# app.register_blueprint(main_bp)
 
-for module_name in MODULES:
-    module_path = MODULE_DIR / module_name
-    code = compile(module_path.read_text(encoding="utf-8"), str(module_path), "exec")
-    exec(code, globals())
+# Mantendo seu carregamento dinâmico mas de forma um pouco mais controlada
+# enquanto você não refatora para Blueprints:
+def load_modules(app):
+    MODULE_DIR = Path(__file__).parent / "modules"
+    # Nota: A ordem importa se houver dependências de globals
+    for module_file in MODULE_DIR.glob("*.py"):
+        with open(module_file, "r", encoding="utf-8") as f:
+            exec(f.read(), globals())
 
+load_modules(app)
 
 if __name__ == "__main__":
     app.run(debug=True)

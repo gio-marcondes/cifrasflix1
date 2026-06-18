@@ -1,3 +1,5 @@
+import numpy as np
+
 @app.route('/masterizacao/analise_data/<job_id>')
 def get_analysis_data(job_id):
     librosa = _master_librosa()
@@ -9,7 +11,7 @@ def get_analysis_data(job_id):
         return jsonify({"error": "Job não encontrado"}), 404
 
     input_path = job["input_path"]
-    y, sr = librosa.load(input_path, duration=30) # Carrega os primeiros 30s para performance
+    y, sr = librosa.load(input_path, duration=30, mono=True) # Carrega para performance
 
     # 1. FFT (Barras)
     fft_vals = np.abs(np.fft.rfft(y[:2048]))
@@ -47,6 +49,13 @@ def analisar_musica_ia(job_id):
         # 1. Extração de Features Espectrais Básicas
         spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
         spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85)[0]
+        rms = librosa.feature.rms(y=y)[0]
+        
+        # Medição de Dinâmica (Crest Factor aproximado em dB)
+        peak = np.max(np.abs(y))
+        avg_rms = np.mean(rms)
+        crest_factor = 20 * np.log10(peak / (avg_rms + 1e-6))
+
         zero_crossing_rate = librosa.feature.zero_crossing_rate(y)[0]
         
         mean_centroid = float(np.mean(spectral_centroids))
@@ -126,6 +135,11 @@ def analisar_musica_ia(job_id):
 
 
         master_score = mix_score
+
+        # Penaliza se a dinâmica estiver muito "achatada" (over-mastered)
+        if crest_factor < 8:
+            master_score -= 10
+            diagnostico.append("Dinâmica muito comprimida (Brickwall)")
 
         if mean_rolloff > 7000:
             master_score += 5
@@ -223,7 +237,8 @@ def analisar_musica_ia(job_id):
             "metrics": {
                 "centroid": round(mean_centroid, 1),
                 "rolloff": round(mean_rolloff, 1),
-                "zcr": round(mean_zcr, 4)
+                "zcr": round(mean_zcr, 4),
+                "crest_factor_db": round(float(crest_factor), 2)
             }
         })
         
