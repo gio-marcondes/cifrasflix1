@@ -47,6 +47,11 @@ async function detectarTomEPitch() {
         lblTom.textContent = data.tom;
         lblBpm.textContent = Math.round(data.bpm) + " BPM";
         lblCamelot.textContent = data.camelot;
+        const stemBpmInput = document.getElementById('stemBpmInput');
+        if (stemBpmInput) {
+            stemBpmInput.value = Math.round(data.bpm);
+            stemBpmInput.dispatchEvent(new Event('change'));
+        }
         document.getElementById('lblTonsSemelhantes').innerHTML = data.tons_semelhantes.join('<br>');
         document.getElementById('lblAcordesPossiveis').textContent = data.acordes.join('  •  ');
         painel.style.display = 'block';
