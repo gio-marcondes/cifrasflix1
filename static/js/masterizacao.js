@@ -657,6 +657,238 @@ let histogramaChart = null;
             }
         }
 
+        function abrirModalExportacaoSingleStem(track) {
+            let modal = document.getElementById('exportSingleStemModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'exportSingleStemModal';
+                modal.style.position = 'fixed'; modal.style.top = '0'; modal.style.left = '0'; modal.style.right = '0'; modal.style.bottom = '0';
+                modal.style.background = 'rgba(0,0,0,0.85)'; modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center'; modal.style.zIndex = '999999';
+                modal.innerHTML = `
+                    <div style="background:var(--card); padding:24px; border-radius:12px; width:320px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                        <h3 id="exportSingleTitle" style="margin-top:0; margin-bottom:16px;">Exportar Faixa</h3>
+                        <label style="display:block; margin-bottom:12px;">
+                            <span style="display:block; margin-bottom:4px; font-size:14px; font-weight:bold;">Formato</span>
+                            <select id="exportSingleFormatSel" class="presetBtn" style="width:100%; text-align:left;">
+                                <option value="wav">WAV (Alta Qualidade)</option>
+                                <option value="mp3">MP3 (Comprimido)</option>
+                            </select>
+                        </label>
+                        <label id="exportSingleMp3QualGroup" style="display:none; margin-bottom:16px;">
+                            <span style="display:block; margin-bottom:4px; font-size:14px; font-weight:bold;">Qualidade MP3</span>
+                            <select id="exportSingleMp3QualSel" class="presetBtn" style="width:100%; text-align:left;">
+                                <option value="320">320 kbps</option>
+                                <option value="256">256 kbps</option>
+                                <option value="192">192 kbps</option>
+                                <option value="128">128 kbps</option>
+                            </select>
+                        </label>
+                        <div style="display:flex; gap:12px; margin-top:24px;">
+                            <button id="btnCancelSingleExport" class="presetBtn" style="flex:1;">Cancelar</button>
+                            <button id="btnConfirmSingleExport" class="presetBtn" style="flex:1; background:#16a34a; color:white;">Exportar</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                document.getElementById('exportSingleFormatSel').addEventListener('change', (e) => {
+                    document.getElementById('exportSingleMp3QualGroup').style.display = e.target.value === 'mp3' ? 'block' : 'none';
+                });
+                document.getElementById('btnCancelSingleExport').onclick = () => modal.style.display = 'none';
+            }
+            
+            const titleEl = document.getElementById('exportSingleTitle');
+            if (titleEl) {
+                titleEl.textContent = `Exportar: ${track.row.dataset.title}`;
+            }
+
+            document.getElementById('btnConfirmSingleExport').onclick = () => {
+                modal.style.display = 'none';
+                const format = document.getElementById('exportSingleFormatSel').value;
+                const kbps = parseInt(document.getElementById('exportSingleMp3QualSel').value, 10);
+                exportarSingleStem(track, format, kbps);
+            };
+
+            modal.style.display = 'flex';
+        }
+
+        async function exportarSingleStem(track, format = 'wav', kbps = 320) {
+            if (!track) return;
+            const srcUrl = track.row.dataset.src || track.player.src;
+            if (!srcUrl) {
+                alert('URL da faixa inválida.');
+                return;
+            }
+
+            const title = track.row.dataset.title || 'stem';
+            
+            setMasterStatus(`Renderizando stem: ${title}...`);
+            
+            const progContainer = document.getElementById('masterProgressContainer');
+            const progBar = document.getElementById('masterProgressBar');
+            if (progContainer) progContainer.style.display = 'block';
+            if (progBar) progBar.style.width = '10%';
+
+            try {
+                const res = await fetch(srcUrl);
+                const arrayBuf = await res.arrayBuffer();
+                
+                const sampleRate = masterStemState.context.sampleRate || 44100;
+                
+                const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await tempCtx.decodeAudioData(arrayBuf);
+                tempCtx.close().catch(() => {});
+                
+                const stemDur = audioBuffer.duration;
+                if (stemDur <= 0) {
+                    alert('Duração inválida para renderização.');
+                    return;
+                }
+
+                const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, sampleRate * stemDur, sampleRate);
+
+                const masterVolNode = offlineCtx.createGain();
+                masterVolNode.gain.value = masterStemState.masterGain ? masterStemState.masterGain.gain.value : 1;
+                masterVolNode.connect(offlineCtx.destination);
+
+                const sourceNode = offlineCtx.createBufferSource();
+                sourceNode.buffer = audioBuffer;
+
+                const trimGainNode = offlineCtx.createGain();
+                const gainNode = offlineCtx.createGain();
+                const pannerNode = typeof offlineCtx.createStereoPanner === 'function' ? offlineCtx.createStereoPanner() : null;
+                const fxNodes = criarFxNodesStem(offlineCtx, track.fxState);
+
+                const eqFilters = masterEqFreqs.map((freq) => {
+                    const f = offlineCtx.createBiquadFilter();
+                    f.type = 'peaking';
+                    f.frequency.value = freq;
+                    f.Q.value = 1;
+                    f.gain.value = 0;
+                    return f;
+                });
+
+                sourceNode.connect(eqFilters[0]);
+                for (let i = 0; i < eqFilters.length - 1; i++) {
+                    eqFilters[i].connect(eqFilters[i + 1]);
+                }
+                eqFilters[eqFilters.length - 1].connect(fxNodes.input);
+                fxNodes.output.connect(pannerNode ? pannerNode : trimGainNode);
+                if (pannerNode) fxNodes.autopanDepth.connect(pannerNode.pan);
+                if (pannerNode) pannerNode.connect(trimGainNode);
+                trimGainNode.connect(gainNode);
+                gainNode.connect(masterVolNode);
+
+                if (track.eqFilters && track.eqFilters.length === eqFilters.length) {
+                    track.eqFilters.forEach((origF, idx) => {
+                        eqFilters[idx].gain.value = origF.gain.value;
+                    });
+                } else if (track.eqGains && track.eqGains.length === eqFilters.length) {
+                    track.eqGains.forEach((gainVal, idx) => {
+                        eqFilters[idx].gain.value = gainVal;
+                    });
+                }
+
+                gainNode.gain.value = track.gainNode ? track.gainNode.gain.value : (Number(track.volume?.value || 100) / 100);
+                if (pannerNode) {
+                    if (track.pannerNode) {
+                        pannerNode.pan.value = track.pannerNode.pan.value;
+                    } else if (track.panValue !== undefined) {
+                        pannerNode.pan.value = clampStemPan(track.panValue) / 100;
+                    }
+                }
+
+                const curveLength = Math.max(2, Math.ceil(stemDur * 100));
+                const curve = new Float32Array(curveLength);
+
+                const startPct = track.trimStart || 0;
+                const endPct = track.trimEnd !== undefined ? track.trimEnd : 1;
+                const fadeInPct = track.fadeIn || 0;
+                const fadeOutPct = track.fadeOut || 0;
+                const mutes = track.mutes || [];
+
+                for (let i = 0; i < curveLength; i++) {
+                    const pct = i / (curveLength - 1);
+                    let outsideTrim = pct < startPct || pct > endPct;
+
+                    if (!outsideTrim) {
+                        for (let j = 0; j < mutes.length; j++) {
+                            if (pct >= mutes[j].startPct && pct <= mutes[j].endPct) {
+                                outsideTrim = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    let targetGain = outsideTrim ? 0 : 1;
+
+                    if (!outsideTrim) {
+                        if (fadeInPct > 0 && pct < startPct + fadeInPct) {
+                            targetGain = (pct - startPct) / fadeInPct;
+                        } else if (fadeOutPct > 0 && pct > endPct - fadeOutPct) {
+                            targetGain = (endPct - pct) / fadeOutPct;
+                        }
+
+                        for (let j = 0; j < mutes.length; j++) {
+                            const m = mutes[j];
+                            const mFO = m.fadeOut || 0;
+                            const mFI = m.fadeIn || 0;
+
+                            if (mFO > 0 && pct <= m.startPct && pct > m.startPct - mFO) {
+                                const localGain = (m.startPct - pct) / mFO;
+                                targetGain = Math.min(targetGain, localGain);
+                            }
+
+                            if (mFI > 0 && pct >= m.endPct && pct < m.endPct + mFI) {
+                                const localGain = (pct - m.endPct) / mFI;
+                                targetGain = Math.min(targetGain, localGain);
+                            }
+                        }
+                    }
+                    curve[i] = targetGain;
+                }
+
+                trimGainNode.gain.setValueCurveAtTime(curve, 0, stemDur);
+                sourceNode.start(0);
+
+                if (progBar) progBar.style.width = '30%';
+
+                setMasterStatus('Processando renderização final da stem...');
+                const renderedBuffer = await offlineCtx.startRendering();
+
+                if (progBar) progBar.style.width = '60%';
+
+                setMasterStatus(`Convertendo stem para ${format.toUpperCase()}...`);
+                let finalBlob;
+                if (format === 'mp3') {
+                    finalBlob = await audioBufferToMp3(renderedBuffer, kbps, (p) => { 
+                        if (progBar) progBar.style.width = `${60 + (p * 40)}%`; 
+                    });
+                } else {
+                    finalBlob = await audioBufferToWav(renderedBuffer, (p) => { 
+                        if (progBar) progBar.style.width = `${60 + (p * 40)}%`; 
+                    });
+                }
+
+                const url = URL.createObjectURL(finalBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                setMasterStatus(`Download de "${title}" em ${format.toUpperCase()} concluído!`);
+                setTimeout(() => { 
+                    if (progContainer) progContainer.style.display = 'none'; 
+                }, 1000);
+            } catch (err) {
+                console.error(err);
+                setMasterStatus('Erro ao exportar stem: ' + err.message);
+                alert('Erro ao exportar stem: ' + err.message);
+                if (progContainer) progContainer.style.display = 'none';
+            }
+        }
+
         function mostrarMenuCorte(x, y) {
             let menu = document.getElementById('cutContextMenu');
             if (!menu) {
@@ -1203,7 +1435,12 @@ let histogramaChart = null;
             row.dataset.file = faixa.nome || '';
             row.innerHTML = `
                 <div class="stem-meta">
-                    <p class="stem-name"></p>
+                    <div class="stem-name-container" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <p class="stem-name" style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                        <button class="stem-download-btn" type="button" title="Baixar esta stem" style="background: transparent; border: none; cursor: pointer; padding: 2px; font-size: 16px; color: var(--accent, #39d7e6); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
+                            📥
+                        </button>
+                    </div>
                     <div class="stem-controls">
                         <button class="stem-toggle stem-mute" type="button" title="Mute">M</button>
                         <button class="stem-toggle stem-solo" type="button" title="Solo">S</button>
@@ -1740,6 +1977,14 @@ let histogramaChart = null;
             const volOut = row.querySelector('.stem-volume-value');
             const panKnob = row.querySelector('.stem-pan-knob');
             const panOut = row.querySelector('.stem-pan-value');
+            const downloadBtn = row.querySelector('.stem-download-btn');
+
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    abrirModalExportacaoSingleStem(track);
+                });
+            }
 
             if (mute) {
                 mute.addEventListener('click', (event) => {
@@ -2623,6 +2868,24 @@ let histogramaChart = null;
                     btnExportWav.title = 'Renderizar mix final e escolher formato WAV ou MP3';
                     btnExportWav.onclick = abrirModalExportacaoStems;
                     controls.appendChild(btnExportWav);
+
+                    const btnLoop = document.createElement('button');
+                    btnLoop.id = 'stemLoopBtn';
+                    btnLoop.className = 'presetBtn';
+                    btnLoop.type = 'button';
+                    btnLoop.innerHTML = (audio && audio.loop) ? '🔁 Loop: ON' : '🔁 Loop: OFF';
+                    btnLoop.title = 'Alternar repetição contínua (Loop)';
+                    if (audio && audio.loop) {
+                        btnLoop.classList.add('is-on');
+                    }
+                    btnLoop.onclick = () => {
+                        if (audio) {
+                            audio.loop = !audio.loop;
+                            btnLoop.innerHTML = audio.loop ? '🔁 Loop: ON' : '🔁 Loop: OFF';
+                            btnLoop.classList.toggle('is-on', audio.loop);
+                        }
+                    };
+                    controls.appendChild(btnLoop);
 
                     const grid = document.getElementById('masterStemGrid');
                     if (grid && grid.parentNode) {
