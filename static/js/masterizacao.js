@@ -9,6 +9,8 @@ let histogramaChart = null;
         let masterVoicePosition = 'central';
         let masterNoDrums = false;
         const masterEqFreqs = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+        
+        // Estados unificados para Web Audio API
         const masterEqState = {
             context: null,
             source: null,
@@ -26,18 +28,35 @@ let histogramaChart = null;
             timelineDuration: 0,
         };
 
+        // Função para inicializar um AudioContext e Analyser únicos e compartilhados
+        function initSharedAudioContext() {
+            if (masterEqState.context) return; // Já inicializado
+
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            const context = new Ctx();
+            
+            const analyser = context.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.75;
+            analyser.connect(context.destination); // Conecta o analisador à saída final de áudio
+
+            // Armazena o contexto e o analisador em ambos os estados para referência
+            masterEqState.context = context;
+            masterEqState.analyser = analyser;
+            masterStemState.context = context;
+        }
+
         // Função disparada pelos botões iniciais
         window.selecionarWorkflow = function(workflow) {
             currentWorkflow = workflow;
-            // Esconde os perfis e mostra a caixa de arrastar arquivo
             const selector = document.getElementById('workflowSelector');
             const dropZone = document.getElementById('fileDropZone');
-            if (selector) selector.classList.add('fade-out'); // Inicia fade-out
+            if (selector) selector.classList.add('fade-out');
             setTimeout(() => {
-                if (selector) selector.style.display = 'none'; // Esconde após o fade
-                if (dropZone) dropZone.style.display = 'flex'; // Torna visível para fade-in
-                if (dropZone) dropZone.classList.add('fade-in'); // Inicia fade-in
-            }, 400); // Tempo para o fade-out
+                if (selector) selector.style.display = 'none';
+                if (dropZone) dropZone.style.display = 'flex';
+                if (dropZone) dropZone.classList.add('fade-in');
+            }, 400);
             setMasterStatus('Aguardando arquivo para ' + (workflow === 'mix' ? 'mixagem' : 'masterização'));
         };
         
@@ -148,7 +167,6 @@ let histogramaChart = null;
                 }
             }
 
-            // Restaura fades, mutes, eqs, fx...
             track.trimStart = snapshot.trimStart;
             track.trimEnd = snapshot.trimEnd;
             track.fadeIn = snapshot.fadeIn;
@@ -225,20 +243,19 @@ let histogramaChart = null;
                 function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
                 function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
 
-                setUint32(0x46464952); // "RIFF"
-                setUint32(length - 8); // file length - 8
-                setUint32(0x45564157); // "WAVE"
-                setUint32(0x20746d66); // "fmt " chunk
-                setUint32(16); // length = 16
-                setUint16(1); // PCM (uncompressed)
+                setUint32(0x46464952);
+                setUint32(length - 8);
+                setUint32(0x45564157);
+                setUint32(0x20746d66);
+                setUint32(16);
+                setUint16(1);
                 setUint16(numOfChan);
                 setUint32(buffer.sampleRate);
-                setUint32(buffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-                setUint16(numOfChan * 2); // block-align
-                setUint16(16); // 16-bit
-
-                setUint32(0x61746164); // "data" - chunk
-                setUint32(length - pos - 4); // chunk length
+                setUint32(buffer.sampleRate * 2 * numOfChan);
+                setUint16(numOfChan * 2);
+                setUint16(16);
+                setUint32(0x61746164);
+                setUint32(length - pos - 4);
 
                 for(i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
 
@@ -253,7 +270,7 @@ let histogramaChart = null;
                         }
                         offset++;
                     }
-                    
+
                     if (onProgress) onProgress(offset / buffer.length);
 
                     if (offset < buffer.length) {
@@ -262,7 +279,7 @@ let histogramaChart = null;
                         resolve(new Blob([bufferArray], {type: "audio/wav"}));
                     }
                 }
-                
+
                 processarFatia();
             });
         }
@@ -317,7 +334,6 @@ let histogramaChart = null;
         }
 
         async function processarCorteBuffer(url, startPct, endPct, acao, onProgress) {
-            // Deprecated: Cortes agora são não-destrutivos visuais.
             return null;
         }
 
@@ -475,7 +491,7 @@ let histogramaChart = null;
         async function exportarMixagemStems(format = 'wav', kbps = 320) {
             const btn = document.getElementById('stemExportMixBtn');
             if (!btn) return;
-            
+
             if (!masterStemState.tracks.length) {
                 alert('Nenhuma faixa para exportar.');
                 return;
@@ -494,33 +510,33 @@ let histogramaChart = null;
             try {
                 const sampleRate = masterStemState.context.sampleRate || 44100;
                 const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, sampleRate * duracao, sampleRate);
-                
+
                 const masterVolNode = offlineCtx.createGain();
                 masterVolNode.gain.value = masterStemState.masterGain.gain.value;
                 masterVolNode.connect(offlineCtx.destination);
-                
+
                 const progContainer = document.getElementById('masterProgressContainer');
                 const progBar = document.getElementById('masterProgressBar');
                 if (progContainer) progContainer.style.display = 'block';
                 if (progBar) progBar.style.width = '10%';
-                
+
                 let processed = 0;
                 for (const track of masterStemState.tracks) {
                     const srcUrl = track.row.dataset.src || track.player.src;
                     if (!srcUrl) continue;
-                    
+
                     const res = await fetch(srcUrl);
                     const arrayBuf = await res.arrayBuffer();
                     const audioBuffer = await offlineCtx.decodeAudioData(arrayBuf);
-                    
+
                     const sourceNode = offlineCtx.createBufferSource();
                     sourceNode.buffer = audioBuffer;
-                    
+
                     const trimGainNode = offlineCtx.createGain();
                     const gainNode = offlineCtx.createGain();
                     const pannerNode = typeof offlineCtx.createStereoPanner === 'function' ? offlineCtx.createStereoPanner() : null;
                     const fxNodes = criarFxNodesStem(offlineCtx, track.fxState);
-                    
+
                     const eqFilters = masterEqFreqs.map((freq) => {
                         const f = offlineCtx.createBiquadFilter();
                         f.type = 'peaking';
@@ -529,7 +545,7 @@ let histogramaChart = null;
                         f.gain.value = 0;
                         return f;
                     });
-                    
+
                     sourceNode.connect(eqFilters[0]);
                     for (let i = 0; i < eqFilters.length - 1; i++) {
                         eqFilters[i].connect(eqFilters[i + 1]);
@@ -540,20 +556,20 @@ let histogramaChart = null;
                     if (pannerNode) pannerNode.connect(trimGainNode);
                     trimGainNode.connect(gainNode);
                     gainNode.connect(masterVolNode);
-                    
+
                     if (track.eqFilters && track.eqFilters.length === eqFilters.length) {
                         track.eqFilters.forEach((origF, idx) => {
                             eqFilters[idx].gain.value = origF.gain.value;
                         });
                     }
-                    
+
                     gainNode.gain.value = track.gainNode.gain.value;
                     if (pannerNode && track.pannerNode) pannerNode.pan.value = track.pannerNode.pan.value;
-                    
+
                     const stemDur = audioBuffer.duration;
                     const curveLength = Math.max(2, Math.ceil(stemDur * 100));
                     const curve = new Float32Array(curveLength);
-                    
+
                     const startPct = track.trimStart || 0;
                     const endPct = track.trimEnd !== undefined ? track.trimEnd : 1;
                     const fadeInPct = track.fadeIn || 0;
@@ -563,7 +579,7 @@ let histogramaChart = null;
                     for (let i = 0; i < curveLength; i++) {
                         const pct = i / (curveLength - 1);
                         let outsideTrim = pct < startPct || pct > endPct;
-                        
+
                         if (!outsideTrim) {
                             for (let j = 0; j < mutes.length; j++) {
                                 if (pct >= mutes[j].startPct && pct <= mutes[j].endPct) {
@@ -572,7 +588,7 @@ let histogramaChart = null;
                                 }
                             }
                         }
-                        
+
                         let targetGain = outsideTrim ? 0 : 1;
 
                         if (!outsideTrim) {
@@ -600,17 +616,17 @@ let histogramaChart = null;
                         }
                         curve[i] = targetGain;
                     }
-                    
+
                     trimGainNode.gain.setValueCurveAtTime(curve, 0, stemDur);
                     sourceNode.start(0);
-                    
+
                     processed++;
                     if (progBar) progBar.style.width = `${10 + (processed / masterStemState.tracks.length) * 40}%`;
                 }
-                
+
                 setMasterStatus('Processando mixagem final (aguarde)...');
                 const renderedBuffer = await offlineCtx.startRendering();
-                
+
                 setMasterStatus(`Convertendo áudio para ${format.toUpperCase()}...`);
                 let finalBlob;
                 if (format === 'mp3') {
@@ -618,7 +634,7 @@ let histogramaChart = null;
                 } else {
                     finalBlob = await audioBufferToWav(renderedBuffer, (p) => { if (progBar) progBar.style.width = `${50 + (p * 50)}%`; });
                 }
-                
+
                 const url = URL.createObjectURL(finalBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -626,7 +642,7 @@ let histogramaChart = null;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                
+
                 setMasterStatus(`Exportação ${format.toUpperCase()} concluída com sucesso!`);
                 setTimeout(() => { if (progContainer) progContainer.style.display = 'none'; }, 1000);
             } catch (err) {
@@ -752,7 +768,6 @@ let histogramaChart = null;
         }
 
         async function separarStems(){
-            // Esconde o overlay de bloqueio para não travar a tela inteira
             const overlay = document.getElementById('stemsLoadingOverlay');
             if (overlay) {
                 overlay.style.display = 'none';
@@ -786,9 +801,7 @@ let histogramaChart = null;
             );
             const data = await r.json();
 
-            acompanharStems(
-                data.job_id
-            );
+            await acompanharStems(data.job_id);
         }
         async function acompanharStems(jobId){
             const timer = setInterval(
@@ -806,7 +819,6 @@ let histogramaChart = null;
                     const data = await r.json();
                     const prog = data.progresso || 0;
 
-                    // Atualiza a barra do workspace
                     if (progBar) progBar.style.width = prog + '%';
                     
                     setMasterStatus(`Separando stems com IA... ${Math.round(prog)}%`);
@@ -814,7 +826,6 @@ let histogramaChart = null;
                     if(
                         data.status === "completed"
                     ) {
-                        // Esconde o overlay de bloqueio por segurança
                         const overlay = document.getElementById('stemsLoadingOverlay');
                         if (overlay) overlay.style.display = 'none';
 
@@ -832,9 +843,7 @@ let histogramaChart = null;
                             },800);
                         clearInterval(timer);
 
-                        renderizarStems(
-                            data.resultado
-                        );
+                        await renderizarStems(data.resultado);
                     }
 
                     if (data.status === "failed") {
@@ -1139,17 +1148,24 @@ let histogramaChart = null;
             fx.autopanDepth.gain.value = autopanOn ? clampStemValue(state.autopan.depth, 0, 100) / 100 : 0;
         }
 
-        function ensureStemAudioContext(){
-            if (!masterStemState.context) {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                masterStemState.context = new Ctx();
+        async function ensureStemAudioContext() {
+            initSharedAudioContext(); 
+            masterStemState.context = masterEqState.context;
+
+            if (!masterStemState.masterGain) {
                 masterStemState.masterGain = masterStemState.context.createGain();
                 const volume = Number(document.getElementById('masterVolume')?.value || 100) / 100;
                 masterStemState.masterGain.gain.value = volume;
-                masterStemState.masterGain.connect(masterStemState.context.destination);
+
+                if (masterEqState.analyser) {
+                    masterStemState.masterGain.connect(masterEqState.analyser);
+                } else {
+                    masterStemState.masterGain.connect(masterStemState.context.destination);
+                }
             }
+
             if (masterStemState.context.state === 'suspended') {
-                masterStemState.context.resume().catch(() => {});
+                await masterStemState.context.resume().catch(() => {});
             }
         }
 
@@ -1802,10 +1818,10 @@ let histogramaChart = null;
                     handle.addEventListener('pointerdown', (e) => {
                         e.preventDefault(); e.stopPropagation();
                         registrarUndoEstadoStems('Ajustar corte/fade');
-                        
+
                         const rect = wrap.getBoundingClientRect();
                         let isDragging = true;
-                        
+
                         let tooltip = document.createElement('div');
                         tooltip.style.position = 'fixed';
                         tooltip.style.background = 'rgba(0,0,0,0.85)';
@@ -1819,20 +1835,20 @@ let histogramaChart = null;
                         tooltip.style.transform = 'translate(-50%, -140%)';
                         tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
                         document.body.appendChild(tooltip);
-                        
+
                         const updateTooltip = (ev, text) => {
                             tooltip.style.left = ev.clientX + 'px';
                             tooltip.style.top = ev.clientY + 'px';
                             tooltip.textContent = text;
                         };
-                        
+
                         const onMove = (ev) => {
                             if (!isDragging) return;
                             let pct = (ev.clientX - rect.left) / rect.width;
                             pct = Math.max(0, Math.min(1, pct));
-                            
+
                             const stemTotal = obterDuracaoStem(track);
-                            
+
                             if (side === 'start') {
                                 track.trimStart = Math.min(pct, (track.trimEnd || 1) - 0.005);
                                 track.fadeIn = Math.min(track.fadeIn || 0, (track.trimEnd || 1) - track.trimStart - (track.fadeOut || 0));
@@ -1854,20 +1870,20 @@ let histogramaChart = null;
                             }
                             renderTrimMutes(track);
                         };
-                        
+
                         const onUp = () => {
                             isDragging = false;
                             if (tooltip) tooltip.remove();
                             window.removeEventListener('pointermove', onMove);
                             window.removeEventListener('pointerup', onUp);
                         };
-                        
+
                         window.addEventListener('pointermove', onMove);
                         window.addEventListener('pointerup', onUp);
                         onMove(e);
                     });
                 };
-                
+
                 dragHandle(trimStart, 'start');
                 dragHandle(trimEnd, 'end');
                 dragHandle(fadeInHandle, 'fade-in');
@@ -1891,18 +1907,18 @@ let histogramaChart = null;
                 if (wrap) {
                     let isDragging = false;
                     let startX = 0;
-                    
+
                     wrap.addEventListener('pointerdown', (e) => {
                         if (!masterCutMode) return;
                         e.preventDefault();
                         e.stopPropagation();
-                        
+
                         const rect = wrap.getBoundingClientRect();
                         startX = (e.clientX - rect.left) / rect.width;
                         isDragging = true;
-                        
+
                         removerSelecaoCorte();
-                        
+
                         const selEl = document.createElement('div');
                         selEl.className = 'stem-selection-box';
                         selEl.style.position = 'absolute';
@@ -1914,17 +1930,17 @@ let histogramaChart = null;
                         selEl.style.zIndex = '5';
                         selEl.style.pointerEvents = 'none';
                         wrap.appendChild(selEl);
-                        
+
                         const updateSelection = (ev) => {
                             if (!isDragging) return;
                             let currentX = (ev.clientX - rect.left) / rect.width;
                             currentX = Math.max(0, Math.min(1, currentX));
                             const left = Math.min(startX, currentX);
                             const width = Math.abs(startX - currentX);
-                            
+
                             selEl.style.left = (left * 100) + '%';
                             selEl.style.width = (width * 100) + '%';
-                            
+
                             cutSelection = {
                                 track: track,
                                 waveWrap: wrap,
@@ -1933,20 +1949,20 @@ let histogramaChart = null;
                                 el: selEl
                             };
                         };
-                        
+
                         const onUp = (ev) => {
                             if (!isDragging) return;
                             isDragging = false;
                             window.removeEventListener('pointermove', updateSelection);
                             window.removeEventListener('pointerup', onUp);
-                            
+
                             if (cutSelection && cutSelection.endPct > cutSelection.startPct + 0.002) {
                                 mostrarMenuCorte(ev.clientX, ev.clientY);
                             } else {
                                 removerSelecaoCorte();
                             }
                         };
-                        
+
                         window.addEventListener('pointermove', updateSelection);
                         window.addEventListener('pointerup', onUp);
                     });
@@ -1983,11 +1999,11 @@ let histogramaChart = null;
                 modal = document.createElement('div');
                 modal.id = 'stemFxModal';
                 modal.className = 'stem-fx-modal';
-                
+
                 const content = document.createElement('div');
                 content.id = 'stemFxModalContent';
                 content.className = 'stem-fx-modal-content';
-                
+
                 modal.appendChild(content);
                 document.body.appendChild(modal);
 
@@ -2027,33 +2043,33 @@ let histogramaChart = null;
             `;
             const title = document.getElementById('stemFxTitle');
             if (title) title.textContent = `FX: ${track.row.dataset.title}`;
-            
+
             const renderRack = () => {
                 const rackList = document.getElementById('stemFxRackList');
                 rackList.innerHTML = '';
                 stemFxCatalog.forEach(([tab, label]) => {
                     const fxData = track.fxState[tab];
                     const isInserted = tab === 'eq' ? (fxData?.inserted !== false) : !!fxData?.inserted;
-                    
+
                     if (isInserted) {
                         const item = document.createElement('div');
                         item.className = 'stem-fx-rack-item' + (track.fxState.activeTab === tab ? ' is-active' : '');
                         item.dataset.tab = tab;
-                        
+
                         const isEnabled = fxData?.enabled !== false;
-                        
+
                         item.innerHTML = `
                             <button type="button" class="stem-fx-rack-power ${isEnabled ? 'is-on' : ''}" title="Power">&#x23FB;</button>
                             <span class="stem-fx-rack-name">${label}</span>
                             <button type="button" class="stem-fx-rack-remove" title="Remover">&times;</button>
                         `;
-                        
+
                         item.querySelector('.stem-fx-rack-name').addEventListener('click', () => {
                             track.fxState.activeTab = tab;
                             renderRack();
                             renderTab(tab);
                         });
-                        
+
                         item.querySelector('.stem-fx-rack-power').addEventListener('click', (e) => {
                             e.stopPropagation();
                             fxData.enabled = !isEnabled;
@@ -2082,7 +2098,7 @@ let histogramaChart = null;
                                 renderRack();
                             }
                         });
-                        
+
                         rackList.appendChild(item);
                     }
                 });
@@ -2233,12 +2249,12 @@ let histogramaChart = null;
                     menu.className = 'stem-fx-add-menu';
                     menu.style.zIndex = '999999';
                     document.body.appendChild(menu);
-                    
+
                     document.addEventListener('click', () => {
                         if (menu) menu.style.display = 'none';
                     });
                 }
-                
+
                 menu.innerHTML = '';
                 let hasAvailable = false;
                 stemFxCatalog.forEach(([tab, label]) => {
@@ -2264,17 +2280,17 @@ let histogramaChart = null;
                         menu.appendChild(btn);
                     }
                 });
-                
+
                 if (!hasAvailable) {
                     menu.innerHTML = '<div class="stem-fx-add-empty">Nenhum efeito disponivel</div>';
                 }
-                
+
                 const rect = e.target.getBoundingClientRect();
                 menu.style.display = 'flex';
                 menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
                 menu.style.left = (rect.left + window.scrollX) + 'px';
             });
-            
+
             document.getElementById('resetStemFxBtn').addEventListener('click', () => {
                 const tab = track.fxState.activeTab;
                 if (!tab) return;
@@ -2293,7 +2309,7 @@ let histogramaChart = null;
 
             const currActive = track.fxState.activeTab;
             const isCurrActiveInserted = currActive === 'eq' ? (track.fxState[currActive]?.inserted !== false) : !!track.fxState[currActive]?.inserted;
-            
+
             if (!isCurrActiveInserted) {
                 const nextTab = stemFxCatalog.find(([t]) => t === 'eq' ? track.fxState[t]?.inserted !== false : track.fxState[t]?.inserted)?.[0];
                 track.fxState.activeTab = nextTab || null;
@@ -2304,10 +2320,10 @@ let histogramaChart = null;
             modal.style.display = 'flex';
         }
 
-        function adicionarFaixaStem(faixa, index = masterStemState.tracks.length){
+        async function adicionarFaixaStem(faixa, index = masterStemState.tracks.length){
             const grid = document.getElementById('masterStemGrid');
             if (!grid || !faixa?.url) return null;
-            ensureStemAudioContext();
+            await ensureStemAudioContext();
 
             const playheadHit = document.getElementById('masterStemPlayheadHit');
             const row = criarLinhaStem(faixa, index);
@@ -2405,7 +2421,7 @@ let histogramaChart = null;
             }
 
             try {
-                ensureStemAudioContext();
+                await ensureStemAudioContext();
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const chunks = [];
                 const recorder = new MediaRecorder(stream);
@@ -2439,16 +2455,15 @@ let histogramaChart = null;
             }
         }
 
-        function montarMixerStems(faixas){
+        async function montarMixerStems(faixas){
             const grid = document.getElementById('masterStemGrid');
             if (!grid) return;
             destruirMixerStems();
             grid.querySelectorAll('.stem-row').forEach((row) => row.remove());
-            ensureStemAudioContext();
 
-            faixas.forEach((faixa, index) => {
-                adicionarFaixaStem(faixa, index);
-            });
+            for (const [index, faixa] of faixas.entries()) {
+                await adicionarFaixaStem(faixa, index);
+            }
 
             atualizarContadorStems();
             aplicarEstadosMixerStems();
@@ -2510,10 +2525,10 @@ let histogramaChart = null;
             }
         }
 
-        function renderizarStems(resultado) {
+        async function renderizarStems(resultado) {
                 const area = document.getElementById("stemsArea");
                 if (!area) return;
-                area.style.display = "block"; // Exibe a div
+                area.style.display = "block";
 
                 const faixas = resultado && Array.isArray(resultado.faixas)
                     ? resultado.faixas
@@ -2524,7 +2539,6 @@ let histogramaChart = null;
                     return;
                 }
 
-                // Cria o controle global de play/pause se não existir
                 let controls = document.getElementById('stemGlobalControls');
                 if (!controls) {
                     controls = document.createElement('div');
@@ -2564,7 +2578,6 @@ let histogramaChart = null;
                     btnRecord.onclick = () => alternarGravacaoStem(btnRecord);
                     controls.appendChild(btnRecord);
 
-                    // Botao para ligar o modo de corte de stems (puro JS/Web Audio)
                     const btnCut = document.createElement('button');
                     btnCut.id = 'stemCutModeBtn';
                     btnCut.className = 'presetBtn';
@@ -2611,24 +2624,21 @@ let histogramaChart = null;
                     btnExportWav.onclick = abrirModalExportacaoStems;
                     controls.appendChild(btnExportWav);
 
-                    // Insere logo antes do grid de stems
                     const grid = document.getElementById('masterStemGrid');
                     if (grid && grid.parentNode) {
                         grid.parentNode.insertBefore(controls, grid);
                     }
                 }
 
-                montarMixerStems(faixas);
+                await montarMixerStems(faixas);
                 setMasterStatus('Stems extraídos e carregados.');
             }
 
 
-        // Função unificada para tratar o arquivo (seja via botão ou via arraste)
         function processarArquivoSelecionado(file) {
             if (!file) return;
             arquivoAtual = file;
 
-            // Garante que o arquivo esteja no input para funções que dependem dele
             const fileInput = document.getElementById('masterFile');
             if (fileInput) {
                 const dataTransfer = new DataTransfer();
@@ -2636,58 +2646,50 @@ let histogramaChart = null;
                 fileInput.files = dataTransfer.files;
             }
 
-            // Garante que o relógio interno funcione independentemente de upload no servidor
             const audioObj = document.getElementById('masterAudio');
             if (audioObj) {
                 audioObj.src = URL.createObjectURL(file);
                 audioObj.load();
             }
 
-            // Atualiza o nome na UI
             const nameLabel = document.getElementById('currentFileName');
             if (nameLabel) nameLabel.textContent = file.name;
 
-            // Esconde a zona de drop e mostra as ferramentas (workspace)
             const dropZone = document.getElementById('fileDropZone');
             const workspace = document.getElementById('masterWorkspace');
             
-            if (dropZone) dropZone.classList.remove('fade-in'); // Remove a classe fade-in se houver
-            if (dropZone) dropZone.classList.add('fade-out'); // Inicia o fade-out da dropZone
+            if (dropZone) dropZone.classList.add('fade-out');
             
             setTimeout(() => {
-                if (dropZone) dropZone.style.display = 'none'; // Esconde após o fade-out
-                if (workspace) workspace.style.display = 'block'; // Torna visível para fade-in
-                if (workspace) workspace.classList.add('fade-in', 'workflow-active'); // Inicia fade-in do workspace
+                if (dropZone) dropZone.style.display = 'none';
+                if (workspace) workspace.style.display = 'block';
+                if (workspace) workspace.classList.add('fade-in', 'workflow-active');
 
                 const panelStems = document.getElementById("panelStems");
                 const panelEq = document.getElementById("panelEq");
                 const stack = document.querySelector(".advancedStack");
 
                 if (currentWorkflow === 'mix') {
-                    // --- FLUXO SEPARAR & MIXAR ---
                     if (panelStems) {
                         panelStems.style.display = "block";
-                        panelStems.open = true; // Deixa o card aberto
-                        if (stack) stack.prepend(panelStems); // Move para o topo!
+                        panelStems.open = true;
+                        if (stack) stack.prepend(panelStems);
                     }
-                    if (panelEq) panelEq.open = false; // Fecha o EQ para focar nos stems
+                    if (panelEq) panelEq.open = false;
                     
                     const areaStems = document.getElementById("stemsArea");
                     if (areaStems) areaStems.style.display = "block";
                     
-                    // Dispara a separação por IA imediatamente
                     separarStems();
                 } else {
-                    // --- FLUXO MASTERIZAÇÃO FINAL ---
-                    if (panelStems) panelStems.style.display = "none"; // Some com a barra de stems
-                    if (panelEq) panelEq.open = true; // Foca no EQ e Presets
+                    if (panelStems) panelStems.style.display = "none";
+                    if (panelEq) panelEq.open = true;
                     
                     uploadMasterFile();
                 }
-            }, 400); // Tempo para o fade-out
+            }, 400);
         }
 
-        // Configuração dos Event Listeners (Arraste e Solte)
         document.addEventListener('DOMContentLoaded', () => {
             const dropZone = document.getElementById('fileDropZone');
             const fileInput = document.getElementById('masterFile');
@@ -2721,7 +2723,6 @@ let histogramaChart = null;
                 }, false);
             }
             
-            // Re-bind dos botões originais que estavam fora
             const btnSepStems = document.getElementById('btnSepararStems');
             if (btnSepStems) btnSepStems.addEventListener('click', separarStems);
         });
@@ -2811,7 +2812,6 @@ let histogramaChart = null;
         }
 
           function getMixPayload(){
-                // Força o envio como string "true" ou "false" para alinhar com o validador do Python
                 return {
                     compression: masterCompression,
                     vocal_position: masterVoicePosition,
@@ -2821,7 +2821,6 @@ let histogramaChart = null;
 
 
         function buildPreviewKey(mode){
-            // Cria uma chave única baseada nas escolhas do usuário
             return [mode, masterCompression, masterVoicePosition, masterNoDrums ? 'sem_bateria' : 'com_bateria'].join('|');
         }
 
@@ -2829,24 +2828,22 @@ let histogramaChart = null;
             if (!masterEqState.source || !masterEqState.context) return;
 
             try { masterEqState.source.disconnect(); } catch(e){}
-            try { masterEqState.analyser.disconnect(); } catch(e){}
             try { masterEqState.gainNode.disconnect(); } catch(e){}
             masterEqState.filters.forEach(f=>{ try{ f.disconnect(); }catch(e){} });
 
-            if(!masterEqState.enabled || !masterEqState.filters.length){
-                masterEqState.source.connect(masterEqState.gainNode);
-                masterEqState.gainNode.connect(masterEqState.analyser);
-                masterEqState.analyser.connect(masterEqState.context.destination);
-                return;
-            }
+            const endOfChain = masterEqState.gainNode;
 
-            masterEqState.source.connect(masterEqState.filters[0]);
-            for(let i = 0; i < masterEqState.filters.length - 1; i++){
-                masterEqState.filters[i].connect(masterEqState.filters[i + 1]);
+            if(!masterEqState.enabled || !masterEqState.filters.length){
+                masterEqState.source.connect(endOfChain);
+            } else {
+                masterEqState.source.connect(masterEqState.filters[0]);
+                for(let i = 0; i < masterEqState.filters.length - 1; i++){
+                    masterEqState.filters[i].connect(masterEqState.filters[i + 1]);
+                }
+                masterEqState.filters[masterEqState.filters.length - 1].connect(endOfChain);
             }
-            masterEqState.filters[masterEqState.filters.length - 1].connect(masterEqState.gainNode);
-            masterEqState.gainNode.connect(masterEqState.analyser);
-            masterEqState.analyser.connect(masterEqState.context.destination);
+            
+            endOfChain.connect(masterEqState.analyser);
         }
 
         function buildEqPanel(){
@@ -2932,15 +2929,13 @@ function bindMixUi(){
 
     const drumBtn = document.getElementById('noDrumsBtn');
     if (drumBtn) {
-        // Remove ouvintes antigos para evitar duplicação de cliques
         drumBtn.replaceWith(drumBtn.cloneNode(true));
         
-        // Readiciona o evento correto
         const novoDrumBtn = document.getElementById('noDrumsBtn');
         novoDrumBtn.addEventListener('click', () => {
-            masterNoDrums = !masterNoDrums; // Inverte o estado real
-            updateMixButtons();             // Atualiza a classe 'is-on' no CSS
-            requestPreview(masterActiveMode || 'original', true); // Força o Python a reprocessar
+            masterNoDrums = !masterNoDrums;
+            updateMixButtons();
+            requestPreview(masterActiveMode || 'original', true);
         });
     }
 }
@@ -2949,19 +2944,15 @@ function bindMixUi(){
             const audio = document.getElementById('masterAudio');
             if (!audio) return;
 
-            if (!masterEqState.context) {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                const context = new Ctx();
-                const source = context.createMediaElementSource(audio);
-                const analyser = context.createAnalyser();
-                const gainNode = context.createGain();
+            initSharedAudioContext();
 
-                gainNode.gain.value = 1.0;
-                analyser.fftSize = 512; // Configurado para uma ótima resolução de espectro
-                analyser.smoothingTimeConstant = 0.75;
-                masterEqState.gainNode = gainNode;  
-                const filters = masterEqFreqs.map((freq) => {
-                    const f = context.createBiquadFilter();
+            if (!masterEqState.source) {
+                masterEqState.source = masterEqState.context.createMediaElementSource(audio);
+                masterEqState.gainNode = masterEqState.context.createGain();
+                masterEqState.gainNode.gain.value = 1.0;
+
+                masterEqState.filters = masterEqFreqs.map((freq) => {
+                    const f = masterEqState.context.createBiquadFilter();
                     f.type = 'peaking';
                     f.frequency.value = freq;
                     f.Q.value = 1;
@@ -2969,14 +2960,10 @@ function bindMixUi(){
                     return f;
                 });
 
-                masterEqState.context = context;
-                masterEqState.source = source;
-                masterEqState.filters = filters;
-                masterEqState.analyser = analyser;
                 connectEqGraph();
             }
 
-            if (masterEqState.context && masterEqState.context.state === 'suspended') {
+            if (masterEqState.context.state === 'suspended') {
                 await masterEqState.context.resume();
             }
         }
@@ -3098,10 +3085,8 @@ function bindMixUi(){
                 return;
             }
 
-            // --- INÍCIO DO LOADING E SPINNER ---
             setMasterStatus('Processando preview...');
             
-            // Encontra o botão do preset clicado para colocar o spinner nele
             const btnClicado = document.querySelector(`.presetBtn[data-mode="${mode}"]`);
             let originalTexto = "";
             if (btnClicado) {
@@ -3110,7 +3095,6 @@ function bindMixUi(){
                 document.querySelectorAll('.presetBtn').forEach(b => b.disabled = true);
             }
 
-            // Ativa e anima a barra de progresso de forma preditiva (3 a 5 segundos)
             const progContainer = document.getElementById('masterProgressContainer');
             const progBar = document.getElementById('masterProgressBar');
             if (progContainer && progBar) {
@@ -3136,7 +3120,6 @@ function bindMixUi(){
                     return;
                 }
 
-                // Finaliza a barra em 100% antes de sumir
                 if (progBar) progBar.style.width = '100%';
                 setTimeout(() => { if (progContainer) progContainer.style.display = 'none'; }, 500);
 
@@ -3150,12 +3133,11 @@ function bindMixUi(){
                 setMasterStatus('Erro ao processar áudio.');
                 if (progContainer) progContainer.style.display = 'none';
             } finally {
-                // --- RESTAURA O ESTADO DOS BOTÕES ---
                 if (btnClicado) {
                     btnClicado.innerHTML = originalTexto;
                 }
                 document.querySelectorAll('.presetBtn').forEach(b => b.disabled = false);
-                updateModeButtons(); // Garante o realce do botão ativo
+                updateModeButtons();
             }
         }
 
@@ -3167,7 +3149,7 @@ function bindMixUi(){
 
             const exportBtn = document.getElementById('masterExportBtn');
             const originalExportText = exportBtn ? exportBtn.innerHTML : "Exportar";
-            
+
             if (exportBtn) {
                 exportBtn.innerHTML = `<div class="spinner"></div> Exportando...`;
                 exportBtn.disabled = true;
@@ -3176,12 +3158,12 @@ function bindMixUi(){
             const payload = getEqPayload();
             payload.job_id = masterJobId;
             payload.mode = masterActiveMode || 'original';
-            
+
             const mix = getMixPayload();
             payload.compression = mix.compression;
             payload.vocal_position = mix.vocal_position;
             payload.no_drums = mix.no_drums;
-            
+
             const formatSelect = document.getElementById('masterExportFormat');
             payload.export_format = formatSelect ? (formatSelect.value || 'wav') : 'wav';
 
@@ -3194,7 +3176,7 @@ function bindMixUi(){
                     body: JSON.stringify(payload)
                 });
                 const data = await r.json();
-                
+
                 if (!r.ok || !data.download_url){
                     setMasterStatus(data.error || 'Nao foi possivel exportar.');
                     return;
@@ -3217,6 +3199,112 @@ function bindMixUi(){
                 }
             }
         }
+
+        function bindMasterVolume(){
+            const slider = document.getElementById('masterVolume');
+            const value = document.getElementById('masterVolumeValue');
+            if(!slider || !value) return;
+
+            slider.addEventListener('input', () => {
+                const pct = Number(slider.value);
+                value.textContent = pct + '%';
+                if(masterEqState.gainNode){
+                    masterEqState.gainNode.gain.value = pct / 100;
+                }
+                if(masterStemState.masterGain){
+                    masterStemState.masterGain.gain.value = pct / 100;
+                }
+            });
+        }   
+        document.addEventListener("DOMContentLoaded", () => {
+                const audioPlayer = document.getElementById("masterAudio");
+                const btnA = document.getElementById("abBtnA");
+                const btnB = document.getElementById("abBtnB");
+                const modeBadge = document.getElementById("masterModeBadge");
+                
+                window.masterTrackUrls = { original: "", mastered: "" };
+
+                const originalXHR = window.XMLHttpRequest;
+                function FilteredXHR() {
+                    const xhr = new originalXHR();
+                    xhr.addEventListener("readystatechange", function() {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                            const urlChamada = xhr._url || "";
+                            
+                            if (urlChamada.includes("/masterizacao/upload")) {
+                                try {
+                                    const data = JSON.parse(xhr.responseText);
+                                    if (data.job_id && data.ext) {
+                                        window.masterTrackUrls.original = `/masterizacao/audio/${data.job_id}${data.ext.toLowerCase()}`;
+                                        window.masterTrackUrls.mastered = "";
+                                        btnB.setAttribute("disabled", "true");
+                                        
+                                        switchAudioSource("original");
+                                    }
+                                } catch(e) { console.error("Erro ao ler upload via XHR:", e); }
+                            }
+                            
+                            if (urlChamada.includes("/masterizacao/preview")) {
+                                try {
+                                    const data = JSON.parse(xhr.responseText);
+                                    if (data.download_url) {
+                                        window.masterTrackUrls.mastered = data.download_url;
+                                        btnB.removeAttribute("disabled");
+                                        
+                                        if (btnB.classList.contains("active")) {
+                                            switchAudioSource("mastered");
+                                        }
+                                    }
+                                } catch(e) { console.error("Erro ao ler preview via XHR:", e); }
+                            }
+                        }
+                    });
+                    
+                    const originalOpen = xhr.open;
+                    xhr.open = function(method, url, ...args) {
+                        xhr._url = url;
+                        return originalOpen.apply(xhr, [method, url, ...args]);
+                    };
+                    
+                    return xhr;
+                }
+                window.XMLHttpRequest = FilteredXHR;
+
+                function switchAudioSource(target) {
+                    const url = window.masterTrackUrls[target];
+                    if (!url) return;
+
+                    const currentTime = audioPlayer.currentTime;
+                    const isPlaying = !audioPlayer.paused;
+
+                    audioPlayer.src = url;
+                    audioPlayer.load();
+                    audioPlayer.currentTime = currentTime;
+
+                    if (isPlaying) {
+                        audioPlayer.play().catch(() => {});
+                    }
+
+                    if (target === "original") {
+                        btnA.classList.add("active");
+                        btnB.classList.remove("active");
+                        if(modeBadge) {
+                            modeBadge.textContent = "Original (Bypass)";
+                            modeBadge.style.background = "rgba(245, 158, 11, 0.2)";
+                        }
+                    } else {
+                        btnB.classList.add("active");
+                        btnA.classList.remove("active");
+                        if(modeBadge) {
+                            modeBadge.textContent = "Masterizado (A/B Ativo)";
+                            modeBadge.style.background = "rgba(57, 215, 230, 0.2)";
+                        }
+                    }
+                }
+
+                btnA.addEventListener("click", () => switchAudioSource("original"));
+                btnB.addEventListener("click", () => switchAudioSource("mastered"));
+            });
 
         document.addEventListener('DOMContentLoaded', () => {
             buildEqPanel();
@@ -3242,15 +3330,15 @@ function bindMixUi(){
 
        async function analisarMusicaIA() {
     const jobId = document.getElementById('jobIdField')?.value || masterJobId;
-    if (!jobId) { 
-        alert("Por favor, faça o upload de um áudio primeiro!"); 
-        return; 
+    if (!jobId) {
+        alert("Por favor, faça o upload de um áudio primeiro!");
+        return;
     }
 
     const btn = document.getElementById('btnIaAnalise');
     const statusText = document.getElementById('iaStatusText');
     const badge = document.getElementById('badgeIaDetectado');
-    
+
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<span>🧠</span> Analisando Timbre Vocais e Espectro...';
     btn.disabled = true;
@@ -3282,7 +3370,6 @@ function bindMixUi(){
 
         if (!response.ok) throw new Error(data.error || "Erro na análise de IA");
 
-        // Monta o texto de feedback incluindo os dados do cantor se existirem
         let labelFinal = `🎯 Estilo: ${data.genero_label}`;
         if (data.vocal_info) {
             labelFinal += ` | 🎤 Voz: ${data.vocal_info.genero_voz} (${data.vocal_info.classificacao} a ~${data.vocal_info.f0_media_hz} Hz)`;
@@ -3307,12 +3394,11 @@ function bindMixUi(){
 
       let   modoEspectroAtivo = 'bars';
 let waterfallCanvasAux = null;
-let peakHoldArray = null; // Guarda os maiores picos para a linha vermelha
+let peakHoldArray = null;
 
 function mudarModoEspectro(modo) {
     modoEspectroAtivo = modo;
-    
-    // Atualiza o select nativo do painel de baixo
+
     const selectMode = document.getElementById('settingSelectMode');
     if (selectMode) selectMode.value = modo;
 
@@ -3326,25 +3412,21 @@ function atualizarInformacoesFFT() {
     const analyser = masterEqState.analyser;
     const hzBadge = document.getElementById('hzBinBadge');
     const fftSelect = document.getElementById('settingFftSize');
-    
+
     if (!hzBadge || !fftSelect) return;
 
-    // Se o áudio já iniciou o context, calcula baseado no sampleRate real (ex: 44100 ou 48000)
-    // Se não, assume o padrão comercial de 44100 para exibição prévia
     const sampleRate = (masterEqState.context) ? masterEqState.context.sampleRate : 44100;
     const currentFftSize = parseInt(fftSelect.value);
 
-    // Fórmula idêntica à do print: Sample Rate / Tamanho da FFT
     const hzPerBin = sampleRate / currentFftSize;
-    
+
     hzBadge.textContent = hzPerBin.toFixed(1) + ' Hz/bin';
 
-    // Aplica as configurações em tempo real se o nó analyser já existir
     if (analyser) {
         if (analyser.fftSize !== currentFftSize) {
             analyser.fftSize = currentFftSize;
         }
-        
+
         const smoothingSlider = document.getElementById('settingSmoothing');
         if (smoothingSlider) {
             analyser.smoothingTimeConstant = parseFloat(smoothingSlider.value);
@@ -3367,7 +3449,7 @@ function bindConfiguracoesVisualizacao() {
         smoothingSlider.addEventListener('input', () => {
             const val = parseFloat(smoothingSlider.value);
             if (smoothingBadge) smoothingBadge.textContent = val.toFixed(2);
-            
+
             if (masterEqState.analyser) {
                 masterEqState.analyser.smoothingTimeConstant = val;
             }
@@ -3379,9 +3461,9 @@ function bindConfiguracoesVisualizacao() {
 
 
 const NOTAS_PITCH = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-let lastPitchUpdateTime = 0;    // Controla o tempo para o Throttling
-let notaEstavelAtual = "";       // Guarda a nota que está travada no ecrã
-let historicoNotas = [];         // Buffer para votação de estabilidade
+let lastPitchUpdateTime = 0;
+let notaEstavelAtual = "";
+let historicoNotas = [];
 
 function resetVisualAfinador() {
     document.getElementById('lblPitchNota').textContent = "--";
@@ -3415,17 +3497,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
     return -1;
 }
 
-
-
-
-
-
-
-
-
-
-
-        function startSpectrum(){
+function startSpectrum(){
     const canvas = document.getElementById('spectrumCanvas');
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -3436,19 +3508,16 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
     waterfallCanvasAux.height = canvas.height;
     const ctxAux = waterfallCanvasAux.getContext('2d');
 
-    // Configurações de Grade Estática
     const dbLines = [0, -20, -40, -60, -80];
     const freqLinesLog = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 
-    // Função interna para desenhar o fundo estático (Grid Logarítmico)
     function drawGrid() {
         ctx.lineWidth = 1;
         ctx.font = '10px monospace';
 
-        // 1. Linhas Horizontais (Nível em dB)
         dbLines.forEach(db => {
             const y = ctx.lineWidth + ((db / -100) * (canvas.height - 25));
-            
+
             ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
             ctx.beginPath();
             ctx.moveTo(40, y);
@@ -3459,7 +3528,6 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             ctx.fillText(db + ' dB', 5, y + 3);
         });
 
-        // 2. Linhas Verticais (Frequências em Hz Logarítmicas)
         freqLinesLog.forEach(freq => {
             const logMin = Math.log10(20);
             const logMax = Math.log10(20000);
@@ -3478,7 +3546,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
                 ctx.fillText(label, x - 8, canvas.height - 5);
             }
         });
-        
+
         ctx.strokeStyle = 'rgba(57, 215, 230, 0.2)';
         ctx.beginPath();
         ctx.moveTo(40, 0);
@@ -3487,7 +3555,6 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
         ctx.stroke();
     }
 
-    // --- LÓGICA DE DETECÇÃO DO MOUSE (TOOLTIP) ---
     if (canvas) {
         canvas.addEventListener('mousemove', (e) => {
             const analyser = masterEqState.analyser;
@@ -3513,7 +3580,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
                 tooltip.style.display = 'block';
                 tooltip.style.left = (mouseX + 15) + 'px';
                 tooltip.style.top = (mouseY - 15) + 'px';
-                
+
                 const freqText = freq >= 1000 ? (freq / 1000).toFixed(2) + ' kHz' : Math.floor(freq) + ' Hz';
                 tooltip.innerHTML = `<strong>${freqText}</strong><br><span style="color:#39d7e6">${dbVal.toFixed(1)} dBFS</span>`;
             }
@@ -3528,12 +3595,12 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
         requestAnimationFrame(draw);
         const analyser = masterEqState.analyser;
         const audioPlayer = document.getElementById("masterAudio");
-        
+
         if(!analyser || !audioPlayer) {
             ctx.fillStyle = '#05070a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawGrid();
-            resetVisualAfinador(); 
+            resetVisualAfinador();
             return;
         }
 
@@ -3541,14 +3608,13 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteFrequencyData(dataArray);
 
-        // --- MOTOR DE DETECÇÃO DE PITCH COM FILTRO DE VELOCIDADE (PIANO) ---
         const tempoAgora = performance.now();
         if (tempoAgora - lastPitchUpdateTime > 130) {
             lastPitchUpdateTime = tempoAgora;
 
             const timeBuffer = new Float32Array(analyser.fftSize);
             analyser.getFloatTimeDomainData(timeBuffer);
-            
+
             const sampleRate = masterEqState.context.sampleRate;
             const currentF0 = calcularAutocorrelacaoMusica(timeBuffer, sampleRate);
 
@@ -3571,7 +3637,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
                     const contagem = {};
                     let notaMaisFrequente = notaNome;
                     let maxVotos = 0;
-                    
+
                     historicoNotas.forEach(n => {
                         contagem[n] = (contagem[n] || 0) + 1;
                         if (contagem[n] > maxVotos) {
@@ -3582,7 +3648,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
 
                     if (maxVotos >= 2) {
                         notaEstavelAtual = notaMaisFrequente;
-                        
+
                         document.getElementById('lblPitchNota').textContent = `${notaEstavelAtual}${oitava}`;
                         document.getElementById('lblPitchHz').textContent = `${currentF0.toFixed(2)} Hz`;
                         document.getElementById('pitchConfidenceText').textContent = `${confianca}%`;
@@ -3593,7 +3659,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
 
                         document.querySelectorAll('.piano-key').forEach(key => {
                             if (key.getAttribute('data-note') === notaEstavelAtual) {
-                                key.style.background = '#ffaa00'; 
+                                key.style.background = '#ffaa00';
                             } else {
                                 if (key.classList.contains('white-key')) key.style.background = '#fff';
                                 else key.style.background = '#1f2937';
@@ -3610,33 +3676,30 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             resetVisualAfinador();
         }
 
-        // --- VARIÁVEIS DO ESCOPO DO ESPETRO (CORRIGIDO) ---
         const graphWidth = canvas.width - 50;
         const logMin = Math.log10(20);
         const logMax = Math.log10(20000);
         const sampleRate = masterEqState.context.sampleRate;
 
-        // Inicializa ou redimensiona o array de picos de forma segura
         if (!peakHoldArray || peakHoldArray.length !== 60) {
             peakHoldArray = new Float32Array(60).fill(0);
         }
 
-        // --- MODO 1: BARRAS FFT LOGARÍTMICO ---
         if (modoEspectroAtivo === 'bars') {
             ctx.fillStyle = '#05070a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawGrid();
 
-            const totalBars = 45; 
+            const totalBars = 45;
             const barWidth = graphWidth / totalBars;
 
             for(let i = 0; i < totalBars; i++) {
                 const percent = i / totalBars;
                 const freq = Math.pow(10, logMin + percent * (logMax - logMin));
-                
+
                 const sampleIndex = Math.floor((freq / (sampleRate / 2)) * bufferLength);
                 const value = dataArray[Math.min(sampleIndex, bufferLength - 1)];
-                
+
                 if (value > peakHoldArray[i]) {
                     peakHoldArray[i] = value;
                 } else {
@@ -3655,7 +3718,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
                     } else {
                         gradient.addColorStop(1, '#5b6bf5');
                     }
-                    
+
                     ctx.fillStyle = gradient;
                     ctx.beginPath();
                     ctx.roundRect(xPos, canvas.height - 20 - barHeight, barWidth - 3, barHeight, [2, 2, 0, 0]);
@@ -3667,8 +3730,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
                 ctx.fillRect(xPos, canvas.height - 20 - peakHeight, barWidth - 3, 1.5);
             }
         }
-        
-        // --- MODO 2: LINHA DE FREQUÊNCIA ---
+
         else if (modoEspectroAtivo === 'line') {
             ctx.fillStyle = '#05070a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3680,9 +3742,9 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             gradientLine.addColorStop(0.5, '#7c3aed');
             gradientLine.addColorStop(1, '#ff2a85');
             ctx.strokeStyle = gradientLine;
-            
+
             ctx.beginPath();
-            
+
             for (let x = 0; x < graphWidth; x++) {
                 const percent = x / graphWidth;
                 const freq = Math.pow(10, logMin + percent * (logMax - logMin));
@@ -3698,12 +3760,11 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             ctx.stroke();
         }
 
-        // --- MODO 3: ESPECTROGRAMA COLORIDO LOGARÍTMICO ---
         else if (modoEspectroAtivo === 'spectrogram') {
             ctx.fillStyle = '#05070a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawGrid();
-            
+
             const numBands = 55;
             const bandWidth = graphWidth / numBands;
             const numSegments = 14;
@@ -3712,7 +3773,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             for (let i = 0; i < numBands; i++) {
                 const percent = i / numBands;
                 const freq = Math.pow(10, logMin + percent * (logMax - logMin));
-                
+
                 const sampleIndex = Math.floor((freq / (sampleRate / 2)) * bufferLength);
                 const value = dataArray[Math.min(sampleIndex, bufferLength - 1)];
                 const activeSegments = Math.floor((value / 255) * numSegments);
@@ -3720,7 +3781,7 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
 
                 for (let j = 0; j < activeSegments; j++) {
                     const yPos = (canvas.height - 20) - (j * segmentHeight) - segmentHeight;
-                    
+
                     if (j > numSegments * 0.8) ctx.fillStyle = '#ff1a1a';
                     else if (j > numSegments * 0.5) ctx.fillStyle = '#ffaa00';
                     else ctx.fillStyle = '#39d7e6';
@@ -3730,14 +3791,13 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
             }
         }
 
-        // --- MODO 4: WATERFALL CACHOEIRA ---
         else if (modoEspectroAtivo === 'waterfall') {
             ctxAux.clearRect(0, 0, canvas.width, canvas.height);
             ctxAux.drawImage(canvas, 0, 0);
-            
+
             ctx.fillStyle = '#05070a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(waterfallCanvasAux, 0, 1.2); 
+            ctx.drawImage(waterfallCanvasAux, 0, 1.2);
 
             const imgData = ctx.createImageData(graphWidth, 1);
 
@@ -3768,10 +3828,9 @@ function calcularAutocorrelacaoMusica(buffer, sampleRate) {
     draw();
 }
 
-// Função auxiliar de contagem para o Peak Hold Array
 function totalBarsCalculated(mode) {
     if (mode === 'spectrogram') return 55;
-    return 45; // Bars standard
+    return 45;
 }
 
         let lastMeterUpdate = 0;
@@ -3846,10 +3905,8 @@ function totalBarsCalculated(mode) {
                 const btnB = document.getElementById("abBtnB");
                 const modeBadge = document.getElementById("masterModeBadge");
                 
-                // Links dinâmicos reais estruturados
                 window.masterTrackUrls = { original: "", mastered: "" };
 
-                // Interceptador para XMLHttpRequest (Usado pelo seu front-end original)
                 const originalXHR = window.XMLHttpRequest;
                 function FilteredXHR() {
                     const xhr = new originalXHR();
@@ -3857,30 +3914,26 @@ function totalBarsCalculated(mode) {
                         if (xhr.readyState === 4 && xhr.status === 200) {
                             const urlChamada = xhr._url || "";
                             
-                            // 1. Captura quando o upload do arquivo original finaliza
                             if (urlChamada.includes("/masterizacao/upload")) {
                                 try {
                                     const data = JSON.parse(xhr.responseText);
                                     if (data.job_id && data.ext) {
                                         window.masterTrackUrls.original = `/masterizacao/audio/${data.job_id}${data.ext.toLowerCase()}`;
-                                        window.masterTrackUrls.mastered = ""; // Reseta a masterização anterior
+                                        window.masterTrackUrls.mastered = "";
                                         btnB.setAttribute("disabled", "true");
                                         
-                                        // Ativa o botão A por padrão e carrega o áudio original
                                         switchAudioSource("original");
                                     }
                                 } catch(e) { console.error("Erro ao ler upload via XHR:", e); }
                             }
                             
-                            // 2. Captura quando um preview/preset masterizado termina de processar
                             if (urlChamada.includes("/masterizacao/preview")) {
                                 try {
                                     const data = JSON.parse(xhr.responseText);
                                     if (data.download_url) {
                                         window.masterTrackUrls.mastered = data.download_url;
-                                        btnB.removeAttribute("disabled"); // Ativa o botão [B] Masterizado!
+                                        btnB.removeAttribute("disabled");
                                         
-                                        // Se o utilizador já tiver clicado no [B], atualiza o som na hora
                                         if (btnB.classList.contains("active")) {
                                             switchAudioSource("mastered");
                                         }
@@ -3890,7 +3943,6 @@ function totalBarsCalculated(mode) {
                         }
                     });
                     
-                    // Guarda a URL chamada para sabermos qual rota respondeu
                     const originalOpen = xhr.open;
                     xhr.open = function(method, url, ...args) {
                         xhr._url = url;
@@ -3901,7 +3953,6 @@ function totalBarsCalculated(mode) {
                 }
                 window.XMLHttpRequest = FilteredXHR;
 
-                // Função central que gerencia a troca de áudio mantendo o currentTime idêntico
                 function switchAudioSource(target) {
                     const url = window.masterTrackUrls[target];
                     if (!url) return;
