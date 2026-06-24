@@ -1,6 +1,10 @@
 import numpy as np
+from flask import Blueprint, jsonify, request
+from modules.routes_master_state import MASTER_LOCK, MASTER_JOBS, _master_librosa
 
-@app.route('/masterizacao/analise_data/<job_id>')
+master_analysis_bp = Blueprint('master_analysis', __name__)
+
+@master_analysis_bp.route('/masterizacao/analise_data/<job_id>')
 def get_analysis_data(job_id):
     librosa = _master_librosa()
 
@@ -27,7 +31,7 @@ def get_analysis_data(job_id):
     })
 
 
-@app.route('/masterizacao/analise_ia/<job_id>')
+@master_analysis_bp.route('/masterizacao/analise_ia/<job_id>')
 def analisar_musica_ia(job_id):
     librosa = _master_librosa()
 

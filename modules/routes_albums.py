@@ -1,4 +1,29 @@
-@app.route("/albuns")
+import os
+import re
+import json
+import string
+import sqlite3
+import requests
+from urllib.parse import urlencode
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify
+
+from modules.layout import header
+from modules.config import (
+    DB,
+    connect_db,
+    slugify,
+    normalizar_slug,
+    pegar_ano,
+    formatar_data,
+    UPLOAD_FOLDER,
+    HEADERS_MB,
+)
+from modules.ui_helpers import fmt_int
+from modules.routes_main import _has_flixplayer_tab, pegar_foto_artista, extrair_tom_da_cifra
+
+albums_bp = Blueprint('albums', __name__)
+
+@albums_bp.route("/albuns")
 def listar_albuns():
     import os
     import string
@@ -137,7 +162,7 @@ def _album_cover_src(capa_url, album_id):
         return capa_txt
     return f"/capa_album/{album_id}"
 
-@app.route("/artista/<slug>/albuns")
+@albums_bp.route("/artista/<slug>/albuns")
 def artista_albuns(slug):
     page_voltar = request.args.get("page", 1)
 
@@ -314,7 +339,7 @@ def artista_albuns(slug):
 
 
 
-@app.route("/preview")
+@albums_bp.route("/preview")
 def preview():
     artista = request.args.get("artista")
     titulo = request.args.get("titulo")
@@ -323,7 +348,7 @@ def preview():
 
     return jsonify({"preview": url})
 
-@app.route("/album/<int:album_id>")
+@albums_bp.route("/album/<int:album_id>")
 def ver_album(album_id):
     def formatar_duracao(valor):
         if valor in (None, ""):
@@ -656,7 +681,7 @@ def ver_album(album_id):
     return html
 
 
-@app.route("/mb_album")
+@albums_bp.route("/mb_album")
 def mb_album():
     return """
     
@@ -1016,7 +1041,7 @@ function extrairTracksDaTextarea() {
     
     """
 
-@app.route("/buscar-edicoes")
+@albums_bp.route("/buscar-edicoes")
 def mb_buscar_edicoes():
     artista = request.args.get("artista", "").strip()
     album = request.args.get("album", "").strip()
@@ -1040,7 +1065,7 @@ def mb_buscar_edicoes():
 HEADERS = {
     "User-Agent": "AlbumHunterProPlus/1.0 (seuemail@exemplo.com)"
 }
-@app.route("/carregar-album")
+@albums_bp.route("/carregar-album")
 def mb_carregar_album():
     artista = request.args.get("artista")
     album = request.args.get("album")
@@ -1367,7 +1392,7 @@ def gerar_slug(texto):
     texto = re.sub(r"[\s_-]+", "-", texto)
     return texto
 
-@app.route("/salvar-album", methods=["POST"])
+@albums_bp.route("/salvar-album", methods=["POST"])
 def salvar_album():
     try:
         payload = request.get_json()

@@ -11,21 +11,31 @@ UPLOAD_FOLDER = "static/capas"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Em vez de exec(), o ideal é importar Blueprints. 
-# Exemplo de como ficaria após converter routes_main.py em um Blueprint:
-# from modules.routes_main import main_bp
-# app.register_blueprint(main_bp)
+from modules.routes_main import main_bp
+from modules.routes_admin import admin_bp
+from modules.routes_albums import albums_bp
+from modules.routes_lyrics import lyrics_bp
+from modules.routes_lyrics_api import lyrics_api_bp
+from modules.routes_master import master_bp
+from modules.routes_master_analysis import master_analysis_bp
+from modules.routes_misc import misc_bp
+from modules.routes_player import player_bp
+from modules.routes_separador import separador_bp
+from modules.routes_treinar import treinar_bp
+from modules.routes_daw import daw_bp
 
-# Mantendo seu carregamento dinâmico mas de forma um pouco mais controlada
-# enquanto você não refatora para Blueprints:
-def load_modules(app):
-    MODULE_DIR = Path(__file__).parent / "modules"
-    # Nota: A ordem importa se houver dependências de globals
-    for module_file in MODULE_DIR.glob("*.py"):
-        with open(module_file, "r", encoding="utf-8") as f:
-            exec(f.read(), globals())
-
-load_modules(app)
+app.register_blueprint(main_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(albums_bp)
+app.register_blueprint(lyrics_bp)
+app.register_blueprint(lyrics_api_bp)
+app.register_blueprint(master_bp)
+app.register_blueprint(master_analysis_bp)
+app.register_blueprint(misc_bp)
+app.register_blueprint(player_bp)
+app.register_blueprint(separador_bp)
+app.register_blueprint(treinar_bp)
+app.register_blueprint(daw_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)

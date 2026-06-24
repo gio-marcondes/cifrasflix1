@@ -1172,6 +1172,24 @@
         align-items: flex-start;
       }
     }
+    .stem-rec {
+      color: #94a3b8;
+    }
+    .stem-rec:hover {
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+    .stem-rec.is-recording {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.25);
+      color: #ef4444 !important;
+      animation: pulse-rec 1.2s infinite;
+    }
+    @keyframes pulse-rec {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
   </style>
 </head>
 <body class="{% if processando or resultado %}menu-collapsed{% else %}menu-open{% endif %}">
@@ -1237,9 +1255,8 @@
               </label>
             </div>
           </div>
-
           <button class="submit-btn" type="submit">Separar audio</button>
-          <a class="ghost-btn" href="{{ url_for('home') }}">Voltar para a home</a>
+          <a class="ghost-btn" href="{{ url_for('main.home') }}">Voltar para a home</a>
         </form>
       </div>
     </aside>
@@ -1337,6 +1354,7 @@
                 <div class="stem-controls">
                   <button class="stem-toggle stem-mute" type="button" title="Mute">M</button>
                   <button class="stem-toggle stem-solo" type="button" title="Solo">S</button>
+                  <button class="stem-toggle stem-rec" type="button" title="Gravar por cima (Microfone)">●</button>
                   <div class="stem-pan-control">
                     <button class="stem-pan-knob" type="button" title="Pan da stem" aria-label="Pan da stem" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"></button>
                     <output class="stem-pan-value">C</output>
@@ -1715,6 +1733,8 @@
             ctx.stroke();
           };
 
+          const decodedBufferCache = new Map();
+
           const gerarPicos = async (src, quantidade = 900) => {
             if (waveformCache.has(src)) {
               return waveformCache.get(src);
@@ -1726,8 +1746,9 @@
             }
 
             const buffer = await resposta.arrayBuffer();
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const decoded = await audioContext.decodeAudioData(buffer);
+            const decoded = await playbackContext.decodeAudioData(buffer);
+            decodedBufferCache.set(src, decoded);
+
             const canal = decoded.getChannelData(0);
             const bloco = Math.max(1, Math.floor(canal.length / quantidade));
             const picos = new Float32Array(quantidade);
@@ -1744,9 +1765,6 @@
             }
 
             waveformCache.set(src, picos);
-            if (typeof audioContext.close === 'function') {
-              audioContext.close().catch(() => {});
-            }
             return picos;
           };
 

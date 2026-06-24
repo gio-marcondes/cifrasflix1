@@ -1,11 +1,14 @@
 import sqlite3
-
-from flask import Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 from deep_translator import GoogleTranslator
 from bs4 import BeautifulSoup
 
+from modules.config import DB
+from modules.routes_lyrics import procura_letra
 
-@app.route("/traduzir-letra", methods=["POST"])
+lyrics_api_bp = Blueprint('lyrics_api', __name__)
+
+@lyrics_api_bp.route("/traduzir-letra", methods=["POST"])
 def traduzir_letra():
     data = request.get_json()
 
@@ -33,7 +36,7 @@ def traduzir_letra():
         return jsonify({"erro": str(e)})
 
 
-@app.route("/capa_album/<int:album_id>")
+@lyrics_api_bp.route("/capa_album/<int:album_id>")
 def capa_album(album_id):
     conn = sqlite3.connect(DB)
     c = conn.cursor()

@@ -8,7 +8,13 @@ import html as html_lib
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from flask import jsonify, redirect, request, send_file
+from flask import Blueprint, jsonify, redirect, request, send_file, render_template, session, Response
+
+from modules.layout import header
+from modules.config import DB, connect_db, slugify, normalizar_slug, importar_txt
+from modules.routes_lyrics import procura_letra
+
+misc_bp = Blueprint('misc', __name__)
 
 
 MP3DETECT_JOBS = {}
@@ -664,7 +670,7 @@ def _mp3detect_worker(job_id, youtube_url):
             job["finished_at"] = int(time.time())
 
 
-@app.route("/favoritar/<int:id>")
+@misc_bp.route("/favoritar/<int:id>")
 def favoritar(id):
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -674,7 +680,7 @@ def favoritar(id):
     return redirect("/favoritos")
 
 
-@app.route("/favoritos")
+@misc_bp.route("/favoritos")
 def favoritos():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -693,7 +699,7 @@ def favoritos():
     return html
 
 
-@app.route("/stats")
+@misc_bp.route("/stats")
 def stats():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -707,7 +713,7 @@ def stats():
     return html
 
 
-@app.route("/buscar")
+@misc_bp.route("/buscar")
 def buscar():
     q = request.args.get("q", "").strip().lower()
     page = int(request.args.get("page", 1))
@@ -746,13 +752,13 @@ def buscar():
     return jsonify({"results": dados, "page": page, "has_next": has_next})
 
 
-@app.route("/importar")
+@misc_bp.route("/importar")
 def importar():
     importar_txt()
     return redirect("/")
 
 
-@app.route("/login")
+@misc_bp.route("/login")
 def login():
     html = header("Favoritos")
     html += """
@@ -774,7 +780,7 @@ def login():
     return html
 
 
-@app.route("/cadastro")
+@misc_bp.route("/cadastro")
 def cadastro():
     html = header("Favoritos")
     html += """
@@ -799,7 +805,7 @@ def cadastro():
     return html
 
 
-@app.route("/mp3detect")
+@misc_bp.route("/mp3detect")
 def mp3detect():
     html = header("MP3 Detect")
     html += """
@@ -1621,7 +1627,7 @@ def mp3detect():
     return html
 
 
-@app.route("/mp3detect/start", methods=["POST"])
+@misc_bp.route("/mp3detect/start", methods=["POST"])
 def mp3detect_start():
     payload = request.get_json(silent=True) or {}
     youtube_url = (payload.get("youtube_url") or "").strip()
@@ -1661,7 +1667,7 @@ def mp3detect_start():
     return jsonify({"job_id": job_id})
 
 
-@app.route("/mp3detect/status/<job_id>", methods=["GET"])
+@misc_bp.route("/mp3detect/status/<job_id>", methods=["GET"])
 def mp3detect_status(job_id):
     with MP3DETECT_LOCK:
         job = MP3DETECT_JOBS.get(job_id)
@@ -1693,7 +1699,7 @@ def mp3detect_status(job_id):
         )
 
 
-@app.route("/mp3detect/audio/<job_id>", methods=["GET"])
+@misc_bp.route("/mp3detect/audio/<job_id>", methods=["GET"])
 def mp3detect_audio(job_id):
     with MP3DETECT_LOCK:
         job = MP3DETECT_JOBS.get(job_id)
@@ -1712,7 +1718,7 @@ def mp3detect_audio(job_id):
     return send_file(str(caminho), mimetype=audio_mime, as_attachment=False, conditional=True)
 
 
-@app.route("/mp3detect/lyrics", methods=["GET"])
+@misc_bp.route("/mp3detect/lyrics", methods=["GET"])
 def mp3detect_lyrics():
     artist = (request.args.get("artist") or "").strip()
     title = (request.args.get("title") or "").strip()
@@ -1764,7 +1770,7 @@ def mp3detect_lyrics():
     return jsonify(resp)
 
 
-@app.route("/mp3detect/youtube-search", methods=["GET"])
+@misc_bp.route("/mp3detect/youtube-search", methods=["GET"])
 def mp3detect_youtube_search():
     artist = (request.args.get("artist") or "").strip()
     song = (request.args.get("song") or "").strip()
@@ -1800,7 +1806,7 @@ def mp3detect_youtube_search():
     return jsonify({"error": "Nenhum resultado encontrado no YouTube."}), 404
 
 
-@app.route("/api/flix-play/search")
+@misc_bp.route("/api/flix-play/search")
 def flix_play_search_api():
     q = (request.args.get("q") or "").strip()
     try:

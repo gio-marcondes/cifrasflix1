@@ -1,3 +1,15 @@
+import re
+import sqlite3
+import requests
+import unicodedata
+from bs4 import BeautifulSoup
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response
+
+from modules.layout import header
+from modules.config import DB, connect_db, slugify, normalizar_slug
+
+lyrics_bp = Blueprint('lyrics', __name__)
+
 def slug_letras(texto: str) -> str:
 
     if not texto:
@@ -546,7 +558,7 @@ def _inserir_divisor_estrofes(html_texto):
 
     return saida
 
-@app.route("/letra/<artista>/<musica>")
+@lyrics_bp.route("/letra/<artista>/<musica>")
 def ver_letra(artista, musica):
     import html as html_escape
 
@@ -2061,7 +2073,7 @@ let letraOriginalCache = ""
     return html
     
 
-@app.route("/letra/<artista>/<musica>/print")
+@lyrics_bp.route("/letra/<artista>/<musica>/print")
 def imprimir_letra(artista, musica):
     letra_html, traducao_html = procura_letra(artista, musica)
 

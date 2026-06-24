@@ -1,7 +1,20 @@
+import os
+import json
+import sqlite3
+import requests
+from pathlib import Path
+from bs4 import BeautifulSoup
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify
+
+from modules.layout import header
+from modules.config import DB, pegar_ano, baixar_imagem_blob, connect_db
+
+admin_bp = Blueprint('admin', __name__)
+
 PASTA_FOTOS = Path("static/fotos/artista")
 PASTA_FOTOS.mkdir(parents=True, exist_ok=True)
 
-@app.route("/atualizarfoto", methods=["GET", "POST"])
+@admin_bp.route("/atualizarfoto", methods=["GET", "POST"])
 def atualizar_foto():
     senha_correta = "ttx15"
 
@@ -118,7 +131,7 @@ def baixar_wallpapers_banda(banda, offset=0):
     
     return arquivos_salvos
 
-@app.route("/pegarfotos", methods=["GET", "POST"])
+@admin_bp.route("/pegarfotos", methods=["GET", "POST"])
 def pegar_fotos():
     arquivos = None
     erro = None
@@ -149,7 +162,7 @@ def pegar_fotos():
 
 
 
-@app.route("/admin", methods=["GET", "POST"])
+@admin_bp.route("/admin", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
         senha = request.form.get("senha")
@@ -181,7 +194,7 @@ def buscar_capa_album_bing(artista, album):
     return None
 
 
-@app.route("/admin/procurar_capa")
+@admin_bp.route("/admin/procurar_capa")
 def procurar_capa():
     artista = request.args.get("artista", "")
     album = request.args.get("album", "")
@@ -191,7 +204,7 @@ def procurar_capa():
 
 
 
-@app.route("/admin/painel", methods=["GET"])
+@admin_bp.route("/admin/painel", methods=["GET"])
 def admin_painel():
     if not session.get("admin"):
         return redirect("/admin")
@@ -496,7 +509,7 @@ def importar_tracklist_wiki(nome_album, artista):
     # =========================
     return "", url_busca
 
-@app.route("/admin/importar_wiki")
+@admin_bp.route("/admin/importar_wiki")
 def importar_wiki():
     nome = request.args.get("nome")
     artista = request.args.get("artista")
@@ -508,7 +521,7 @@ def importar_wiki():
         "url": url_wiki
     })
 
-@app.route("/admin/musicas_artista")
+@admin_bp.route("/admin/musicas_artista")
 def musicas_artista():
     artista_id = request.args.get("artista_id")
     conn = sqlite3.connect(DB)
@@ -518,7 +531,7 @@ def musicas_artista():
     conn.close()
     return jsonify(musicas)
 
-@app.route("/admin/criar_album", methods=["POST"])
+@admin_bp.route("/admin/criar_album", methods=["POST"])
 def criar_album():
     if not session.get("admin"):
         return redirect("/admin")
@@ -601,7 +614,7 @@ def criar_album():
     return redirect(f"/admin/vincular_album/{album_id}")
 
 
-@app.route("/admin/vincular_album/<int:album_id>", methods=["GET", "POST"])
+@admin_bp.route("/admin/vincular_album/<int:album_id>", methods=["GET", "POST"])
 def vincular_album(album_id):
     if not session.get("admin"):
         return redirect("/admin")

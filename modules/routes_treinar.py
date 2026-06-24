@@ -1,5 +1,10 @@
-@app.route("/treinar/")
-@app.route("/treinar/<artista>/<musica>")
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response
+from modules.layout import header
+
+treinar_bp = Blueprint('treinar', __name__)
+
+@treinar_bp.route("/treinar/")
+@treinar_bp.route("/treinar/<artista>/<musica>")
 def treinar_piano(artista="", musica=""):
     import html as html_escape
 

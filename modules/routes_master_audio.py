@@ -1,3 +1,15 @@
+import time
+from pathlib import Path
+import numpy as np
+
+from modules.routes_master_state import (
+    MASTER_UPLOADS,
+    MASTER_PREVIEWS,
+    MASTER_ALLOWED_EXT,
+    MASTER_EQ_FREQS,
+    _master_librosa,
+)
+
 def _master_ensure_dirs():
     MASTER_UPLOADS.mkdir(parents=True, exist_ok=True)
     MASTER_PREVIEWS.mkdir(parents=True, exist_ok=True)

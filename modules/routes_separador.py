@@ -7,7 +7,11 @@ import time
 import uuid
 from pathlib import Path
 
-from flask import jsonify, render_template, request, url_for
+from flask import Blueprint, jsonify, render_template, request, url_for, redirect, session, Response
+from modules.layout import header
+from modules.config import DB, connect_db, slugify, normalizar_slug
+
+separador_bp = Blueprint('separador', __name__)
 from werkzeug.utils import secure_filename
 
 
@@ -602,7 +606,7 @@ def _processar_job(job_id, input_path, modo, formato, output_dir, arquivo_origin
         )
 
 
-@app.route("/separar-audio/status/<job_id>", methods=["GET"])
+@separador_bp.route("/separar-audio/status/<job_id>", methods=["GET"])
 def separar_audio_status(job_id):
     job = _obter_job(job_id)
     if not job:
@@ -616,10 +620,10 @@ def separar_audio_status(job_id):
         "mensagem": job.get("mensagem", ""),
         "erro": job.get("erro", ""),
         "resultado": job.get("resultado"),
-        "redirect_url": url_for("separar_audio_route", job=job_id),
+        "redirect_url": url_for("separador.separar_audio_route", job=job_id),
     })
 
-@app.route("/api/separar-stems", methods=["POST"])
+@separador_bp.route("/api/separar-stems", methods=["POST"])
 def api_separar_stems():
 
     _ensure_separador_dirs()
@@ -689,7 +693,7 @@ def api_separar_stems():
         "job_id": job_id
     })
 
-@app.route(
+@separador_bp.route(
     "/api/separar-stems/<job_id>",
     methods=["GET"]
 )
@@ -715,7 +719,7 @@ def api_separar_stems_status(job_id):
     })
 
 
-@app.route("/separar-audio", methods=["GET", "POST"])
+@separador_bp.route("/separar-audio", methods=["GET", "POST"])
 def separar_audio_route():
     _ensure_separador_dirs()
 

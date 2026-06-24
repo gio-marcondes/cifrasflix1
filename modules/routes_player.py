@@ -1,3 +1,14 @@
+import re
+import sqlite3
+import unicodedata
+from pathlib import Path
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response, send_file, send_from_directory, abort
+
+from modules.layout import header
+from modules.config import DB, connect_db, slugify, normalizar_slug
+
+player_bp = Blueprint('player', __name__)
+
 def _normalizar_gp_nome(texto):
     import unicodedata
 
@@ -268,7 +279,7 @@ def buscar_tab_guitarpro_por_slug(artista_nome, musica_slug):
     return None
 
 
-@app.route("/tocador-gp4/<slug>/<uid>")
+@player_bp.route("/tocador-gp4/<slug>/<uid>")
 def tocador_gp4(slug, uid):
     resolved = _resolver_track_gp(slug, uid)
     if not resolved:
@@ -292,14 +303,14 @@ def tocador_gp4(slug, uid):
         file_id=file_id,
         artist_slug=slug,
         slug=slug,
-        file_url=url_for("gp_media", slug=slug, uid=file_id),
-        fretboard_url=url_for("gp_api_fretboard", slug=slug, uid=file_id),
+        file_url=url_for("player.gp_media", slug=slug, uid=file_id),
+        fretboard_url=url_for("player.gp_api_fretboard", slug=slug, uid=file_id),
         title=resolved["title"],
         artist=resolved["artist"],
         versions=versoes,
         current_version_url=current_version_url,
         filename=resolved["file_name"],
-        soundfont_url=url_for("gp_soundfont", filename="FluidR3_GM.sf2"),
+        soundfont_url=url_for("player.gp_soundfont", filename="FluidR3_GM.sf2"),
     )
 
 
@@ -388,7 +399,7 @@ def _resolver_track_gp(slug, uid):
     return None
 
 
-@app.route("/gp/media/<slug>/<uid>")
+@player_bp.route("/gp/media/<slug>/<uid>")
 def gp_media(slug, uid):
     from pathlib import Path
     from flask import abort, send_file
@@ -403,7 +414,7 @@ def gp_media(slug, uid):
     return send_file(str(arquivo), as_attachment=False)
 
 
-@app.route("/gp/soundfonts/<path:filename>")
+@player_bp.route("/gp/soundfonts/<path:filename>")
 def gp_soundfont(filename):
     from pathlib import Path
     from flask import abort, send_from_directory
@@ -414,7 +425,7 @@ def gp_soundfont(filename):
     return send_from_directory(str(folder), filename)
 
 
-@app.route("/gp/api/fretboard/<slug>/<uid>")
+@player_bp.route("/gp/api/fretboard/<slug>/<uid>")
 def gp_api_fretboard(slug, uid):
     from pathlib import Path
     from flask import abort

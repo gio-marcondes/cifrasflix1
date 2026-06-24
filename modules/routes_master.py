@@ -1,9 +1,37 @@
-@app.route("/masterizacao")
+import uuid
+import time
+import numpy as np
+from pathlib import Path
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response, send_file
+from werkzeug.utils import secure_filename
+
+from modules.layout import header
+from modules.routes_master_state import (
+    MASTER_LOCK,
+    MASTER_JOBS,
+    MASTER_EQ_FREQS,
+    _master_librosa,
+    MASTER_UPLOADS,
+    MASTER_PREVIEWS,
+)
+from modules.routes_master_audio import (
+    _master_cleanup,
+    _master_ensure_dirs,
+    _master_is_allowed,
+    _master_render_preview,
+    _master_render_export,
+    _master_parse_controls,
+    _master_to_bool,
+)
+
+master_bp = Blueprint('master', __name__)
+
+@master_bp.route("/masterizacao")
 def masterizacao_home():
     return render_template("masterizacao.html", header_html=header("Masterizacao"))
 
 
-@app.route("/masterizacao/upload", methods=["POST"])
+@master_bp.route("/masterizacao/upload", methods=["POST"])
 def masterizacao_upload():
     arquivo = request.files.get("audio_file")
     if not arquivo or not (arquivo.filename or "").strip():
@@ -36,7 +64,7 @@ def masterizacao_upload():
     )
 
 
-@app.route("/masterizacao/preview", methods=["POST"])
+@master_bp.route("/masterizacao/preview", methods=["POST"])
 def masterizacao_preview():
     payload = request.get_json(silent=True) or {}
     job_id = (payload.get("job_id") or "").strip()
@@ -96,7 +124,7 @@ def masterizacao_preview():
         return jsonify({"error": "Falha ao processar o audio."}), 500
 
 
-@app.route("/masterizacao/audio/<path:filename>")
+@master_bp.route("/masterizacao/audio/<path:filename>")
 def masterizacao_audio(filename):
     _master_ensure_dirs()
     nome = Path(filename).name
@@ -109,7 +137,7 @@ def masterizacao_audio(filename):
     return jsonify({"error": "Arquivo nao encontrado."}), 404
 
 
-@app.route('/masterizacao/detectar_tom/<job_id>')
+@master_bp.route('/masterizacao/detectar_tom/<job_id>')
 def detectar_tom_e_pitch(job_id):
     with MASTER_LOCK:
         job = MASTER_JOBS.get(job_id)
@@ -211,7 +239,7 @@ def detectar_tom_e_pitch(job_id):
     except Exception as e:
         return jsonify({"error": f"Falha na análise harmônica: {str(e)}"}), 500
 
-@app.route("/masterizacao/export", methods=["POST"])
+@master_bp.route("/masterizacao/export", methods=["POST"])
 def masterizacao_export():
     payload = request.get_json(silent=True) or {}
     job_id = (payload.get("job_id") or "").strip()

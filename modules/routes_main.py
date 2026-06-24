@@ -1,3 +1,15 @@
+import re
+import math
+import sqlite3
+from pathlib import Path
+from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response
+
+from modules.layout import header
+from modules.config import DB, connect_db, slugify, normalizar_slug
+from modules.ui_helpers import home_dashboard_data, fmt_int
+
+main_bp = Blueprint('main', __name__)
+
 def destacar_acordes(texto):
 
 
@@ -13,7 +25,7 @@ def titulo_base(titulo):
 
     
 
-@app.route("/debug/banco")
+@main_bp.route("/debug/banco")
 def debug_banco():
     conn = sqlite3.connect("cifras.db")
     conn.row_factory = sqlite3.Row
@@ -35,7 +47,7 @@ def debug_banco():
 # ==========================================
 # ROTAS
 # ==========================================
-@app.route("/")
+@main_bp.route("/")
 def home():
     import math
 
@@ -219,7 +231,7 @@ def home():
     return html
 
 
-@app.route("/flix-play")
+@main_bp.route("/flix-play")
 def flix_play():
     import html as html_escape
     import random
@@ -779,7 +791,7 @@ def _has_flixplayer_tab(artista_nome, musica_titulo):
 
 
 
-@app.route("/artista/<slug>")
+@main_bp.route("/artista/<slug>")
 def artista(slug):
     page_voltar = request.args.get("page", 1)
     pagina = int(request.args.get("p", 1))
@@ -1089,7 +1101,7 @@ def extrair_tom(texto):
     return None
 
 
-@app.route("/artista/<slug>/<uid>")
+@main_bp.route("/artista/<slug>/<uid>")
 def musica(slug, uid):
     semitons = int(request.args.get("t", 0))
 
