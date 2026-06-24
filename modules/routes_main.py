@@ -75,6 +75,7 @@ def home():
 
     # Categorizando as ferramentas para maior clareza visual
     ferramentas_estudio = [
+        ("CifrasFlix DAW", "Produza suas músicas com um estúdio online completo.", "/daw", "Abrir DAW"),
         ("FlixPlay", "Explore o acervo de músicas e abra as cifras em modo player.", "/flix-play", "Tocar agora"),
         ("Music Genius", "Transcreva acordes de links do YouTube sincronizados.", "/mp3detect", "Analisar áudio"),
         ("Separador de Áudio", "Isole vocais, bateria, baixo e instrumentos de qualquer música.", "/separar-audio", "Separar stems"),
@@ -101,6 +102,7 @@ def home():
         </div>
         <div class="heroActions">
             <a class="primaryAction glassBtn glassBtnFlix" href="/flix-play">🎸 Abrir FlixPlay</a>
+            <a class="secondaryAction glassBtn glassBtnDaw" href="/daw">🎛️ Abrir DAW</a>
             <a class="secondaryAction glassBtn glassBtnGenius" href="/mp3detect">🎧 Music Genius</a>
         </div>
     </section>
