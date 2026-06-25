@@ -11,6 +11,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Orbitron:wght@700&display=swap" rel="stylesheet">
   
   <style>
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    .recording-clip-preview {
+      background: rgba(239, 68, 68, 0.25) !important;
+      border: 2px dashed #ef4444 !important;
+      z-index: 5;
+    }
+
     :root {
       --bg-dark: #070b14;
       --panel-bg: rgba(22, 28, 45, 0.45);
@@ -42,6 +52,100 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    /* Menu Superior (Menu de Arquivo) */
+    .top-menu-bar {
+      background: rgba(8, 10, 18, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      padding: 6px 20px;
+      font-size: 13px;
+      user-select: none;
+      z-index: 1000;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .menu-item {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .menu-trigger {
+      padding: 6px 12px;
+      color: var(--text-color);
+      border-radius: 4px;
+      display: inline-block;
+      transition: background 0.15s, color 0.15s;
+      font-weight: 500;
+    }
+
+    .menu-trigger:hover, .menu-item:hover .menu-trigger {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #111424;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      padding: 4px 0;
+      z-index: 1010;
+    }
+
+    .menu-item:hover .menu-dropdown {
+      display: block;
+    }
+
+    .menu-dropdown.closed {
+      display: none !important;
+    }
+
+    .menu-dropdown a {
+      color: #ccc;
+      padding: 8px 16px;
+      text-decoration: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .menu-dropdown a:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Submenu para Exportar */
+    .menu-submenu-parent {
+      position: relative;
+    }
+
+    .menu-submenu {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 100%;
+      background: #111424;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      padding: 4px 0;
+      z-index: 1020;
+    }
+
+    .menu-submenu-parent:hover .menu-submenu {
+      display: block;
     }
 
     /* Header e Barra de Ferramentas */
@@ -387,11 +491,23 @@
       animation: flash 1.2s infinite;
     }
 
+    .btn-toggle.monitor-btn.active {
+      background: #eab308;
+      color: #12131a;
+      border-color: #eab308;
+      box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+    }
+
     .btn-toggle.fx-btn.active-fx {
       background: rgba(139, 92, 246, 0.25);
       color: #a78bfa;
       border-color: #8b5cf6;
       box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .pan-knob:hover {
+      border-color: var(--accent) !important;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 0 4px var(--accent-glow);
     }
 
     /* Timeline e Grid de Trilhas */
@@ -482,6 +598,13 @@
       background: rgba(139, 92, 246, 0.015);
     }
 
+    .cut-mode-active .tracks-timeline,
+    .cut-mode-active .audio-clip,
+    .cut-mode-active .tracks-list,
+    .cut-mode-active .timeline-track-row {
+      cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M2 30 L10 22 L14 26 L6 30 Z' fill='%23cbd5e1' stroke='%230f172a' stroke-width='1.5'/><path d='M2 30 L6 30' stroke='%230f172a' stroke-width='1.5'/><path d='M10 22 L26 6 L30 10 L14 26 Z' fill='%23ffffff' stroke='%230f172a' stroke-width='1.5'/><line x1='15' y1='17' x2='19' y2='13' stroke='%2394a3b8' stroke-width='1'/></svg>") 2 30, pointer !important;
+    }
+
     /* Clips de Áudio (Regions) */
     .audio-clip {
       position: absolute;
@@ -503,8 +626,9 @@
     }
 
     .audio-clip.selected {
-      border-color: #fff;
-      box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+      border-color: #eab308;
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.4), rgba(202, 138, 4, 0.25)) !important;
+      box-shadow: 0 0 15px rgba(234, 179, 8, 0.45);
     }
 
     body.cut-mode-active .audio-clip {
@@ -734,13 +858,13 @@
       border: 1px solid rgba(139, 92, 246, 0.25);
       border-radius: 16px;
       padding: 24px;
-      width: 550px;
+      width: 800px;
       max-width: 95%;
       box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 15px rgba(139, 92, 246, 0.15);
       backdrop-filter: blur(16px);
       display: flex;
       flex-direction: column;
-      max-height: 85vh;
+      max-height: 90vh;
     }
     
     .fx-rack-header {
@@ -895,6 +1019,10 @@
       gap: 12px;
     }
 
+    .pro-eq-container {
+      grid-column: 1 / span 2;
+    }
+
     .fx-slider-group {
       display: flex;
       flex-direction: column;
@@ -983,6 +1111,53 @@
 </head>
 <body>
 
+  <!-- Menu Superior de Arquivo -->
+  <div class="top-menu-bar" style="display: flex; gap: 10px;">
+    <div class="menu-item">
+      <span class="menu-trigger">Arquivo</span>
+      <div class="menu-dropdown">
+        <a href="#" onclick="abrirModalImportar(); return false;">📂 Abrir Projeto</a>
+        <a href="#" onclick="salvarConfiguracoes(); return false;">💾 Salvar Projeto</a>
+        <a href="#" onclick="document.getElementById('inputAudioFile').click(); return false;">📂 Importar Áudio</a>
+        <div class="menu-submenu-parent">
+          <a href="#" onclick="return false;">📤 Exportar <span style="font-size: 9px; opacity: 0.7;">▶</span></a>
+          <div class="menu-submenu">
+            <a href="#" onclick="exportMixdown('mp3'); return false;">🎵 MP3</a>
+            <a href="#" onclick="exportMixdown('wav'); return false;">🎵 WAV</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <span class="menu-trigger">Editar</span>
+      <div class="menu-dropdown">
+        <a href="#" onclick="copiarRegiaoSelecionada(); return false;">📋 Copiar (Ctrl+C)</a>
+        <a href="#" onclick="colarRegiao(); return false;">📥 Colar (Ctrl+V)</a>
+        <a href="#" onclick="recortarRegiaoSelecionada(); return false;">✂️ Recortar (Ctrl+X)</a>
+      </div>
+    </div>
+    <div class="menu-item">
+      <span class="menu-trigger">Trilha</span>
+      <div class="menu-dropdown">
+        <a href="#" onclick="abrirModalNovaTrilha(); return false;">➕ Nova Trilha</a>
+        <a href="#" onclick="duplicarTrilhaSelecionada(); return false;">👯 Duplicar Trilha</a>
+        <a href="#" onclick="deletarTrilhaSelecionada(); return false;">❌ Apagar Trilha</a>
+      </div>
+    </div>
+    <div class="menu-item">
+      <span class="menu-trigger">Configurações</span>
+      <div class="menu-dropdown">
+        <a href="#" onclick="abrirModalConfiguracoes(); return false;">⚙️ Dispositivos de Áudio</a>
+      </div>
+    </div>
+    
+    <!-- Controle de Zoom no Menu Superior -->
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 11px; padding-right: 10px;">
+      <span>🔍 Zoom:</span>
+      <input type="range" id="sliderZoomTimeline" min="15" max="180" value="40" style="width: 120px; accent-color: var(--accent); cursor: pointer; background: rgba(255,255,255,0.05); height: 4px; border-radius: 2px;">
+    </div>
+  </div>
+
   <!-- Header -->
   <header>
     <div class="brand">
@@ -1033,8 +1208,12 @@
 
     <!-- Modo de Edição e Ações de Arquivo -->
     <div class="session-controls">
-      <button class="btn-daw" id="btnCutMode" title="Alternar Modo de Corte">✂️ Modo Corte: OFF</button>
-      <button class="btn-daw" id="btnUndo" title="Desfazer último corte" disabled>↶ Desfazer corte</button>
+      <button class="btn-daw active" id="btnPointerMode" title="Ferramenta Seleção / Ponteiro (Atalhos: 1 ou V)">↖️ Seleção (1)</button>
+      <button class="btn-daw" id="btnRegionMode" title="Ferramenta Região (Atalho: R)">📐 Região (R)</button>
+      <button class="btn-daw" id="btnCutMode" title="Ferramenta de Corte (Atalhos: 3 ou C)">✂️ Corte (3)</button>
+      <button class="btn-daw" id="btnUndo" title="Desfazer" disabled>↶ Desfazer</button>
+      <button class="btn-daw" id="btnZoomOut" title="Diminuir Zoom" style="font-weight: bold; padding: 6px 10px;">🔍 -</button>
+      <button class="btn-daw" id="btnZoomIn" title="Aumentar Zoom" style="font-weight: bold; padding: 6px 10px;">🔍 +</button>
     </div>
   </header>
 
@@ -1058,9 +1237,14 @@
 
       <!-- Espaço de Faixas -->
       <div class="tracks-timeline" id="tracksTimeline">
+        <div id="mouseHoverGuide" style="position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.25); pointer-events: none; display: none; z-index: 98;"></div>
         <div class="timeline-grid-lines" id="timelineGridLines"></div>
         <div class="tracks-list" id="tracksList">
           <!-- Linhas de Trilha e Clips de áudio inseridos via JS -->
+        </div>
+        <!-- Seleção de Região (Ferramenta Região) -->
+        <div id="selectionOverlay" style="display: none; position: absolute; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.15); border-left: 2px solid rgba(255, 255, 255, 0.4); border-right: 2px solid rgba(255, 255, 255, 0.4); pointer-events: none; z-index: 99;">
+          <button id="btnDeleteRegionSelect" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: #ef4444; border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; pointer-events: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 100;">Apagar Região (Del)</button>
         </div>
         <!-- Cursor de Playback -->
         <div class="playhead-line" id="playheadLine"></div>
@@ -1158,21 +1342,18 @@
   <!-- Rodapé -->
   <footer>
     <div class="footer-left">
-      <button class="btn-daw" id="btnAddTrack" style="background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3);">➕ Nova Trilha</button>
-      <button class="btn-daw" id="btnImportAudio" style="background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3);">📂 Importar Áudio</button>
       <input type="file" id="inputAudioFile" class="file-input" accept=".mp3,.wav,.flac,.m4a,.ogg">
-    </div>
-
-    <div class="session-controls">
-      <button class="btn-daw" id="btnSaveConfig" title="Salvar sessão atual no navegador">💾 Salvar Configs</button>
-      <button class="btn-daw" id="btnLoadConfig" title="Carregar sessão salva">📂 Carregar Configs</button>
-      <button class="btn-daw" id="btnExportMix" style="background: var(--accent); color: #fff;" title="Rendezar projeto em arquivo de áudio">⬇️ Exportar Mix</button>
     </div>
 
     <div class="footer-right">
       <span>CifrasFlix DAW Engine v1.0 • Web Audio API</span>
     </div>
   </footer>
+
+  <!-- Abinha flutuante para reabrir painel de efeitos -->
+  <div id="btnShowEffectsTab" onclick="toggleEffectsPanel()" style="display: none; position: fixed; right: 0; top: 50%; transform: translateY(-50%); background: var(--accent); color: #fff; padding: 12px 6px; border-radius: 8px 0 0 8px; cursor: pointer; font-size: 11px; font-weight: bold; writing-mode: vertical-rl; text-orientation: mixed; z-index: 999; box-shadow: -2px 0 8px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-right: none; transition: filter 0.2s;">
+    🎛️ Efeitos
+  </div>
 
   <!-- Modal de Carregamento de Sessão / Importação -->
   <div class="modal-daw" id="modalImport">
@@ -1185,11 +1366,71 @@
       </div>
     </div>
 
+  <!-- Modal de Configurações de Dispositivos -->
+  <div class="modal-daw" id="modalSettings">
+    <div class="modal-content" style="max-width: 450px; padding: 25px; border-radius: 12px; background: rgba(20, 25, 45, 0.98); border: 1px solid var(--panel-border); color: var(--text-color); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+      <span class="modal-close" onclick="fecharModal('modalSettings')">&times;</span>
+      <h3 style="margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; color: #fff;">Configurações de Áudio</h3>
+      
+      <div style="margin-top: 20px;">
+        <label for="selectInputDevice" style="display: block; margin-bottom: 6px; font-size: 13px; color: #bbb;">Dispositivo de Entrada (Microfone):</label>
+        <select id="selectInputDevice" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: #121214; color: #fff; box-sizing: border-box; outline: none; font-size: 14px; cursor: pointer;"></select>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <label for="selectOutputDevice" style="display: block; margin-bottom: 6px; font-size: 13px; color: #bbb;">Dispositivo de Saída (Alto-falantes / Fones):</label>
+        <select id="selectOutputDevice" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: #121214; color: #fff; box-sizing: border-box; outline: none; font-size: 14px; cursor: pointer;"></select>
+        <small id="sinkIdWarning" style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: none;">⚠️ Troca de dispositivo de saída não suportada neste navegador.</small>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+        <button onclick="fecharModal('modalSettings')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; width: auto; font-weight: normal; margin-top: 0;">Cancelar</button>
+        <button onclick="salvarConfiguracoesDispositivos()" style="background: var(--accent); border: none; color: #fff; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; width: auto; margin-top: 0;">Salvar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de Efeitos da Trilha -->
   <div class="modal-daw" id="modalFxRack">
       <div class="modal-fx-content" id="modalFxContent">
         <!-- Conteúdo do Rack de Efeitos renderizado via JS -->
       </div>
+  </div>
+
+  <!-- Modal de Adicionar Trilha -->
+  <div class="modal-daw" id="modalAddTrack">
+    <div class="modal-content" style="max-width: 400px; padding: 25px; border-radius: 12px; background: rgba(20, 25, 45, 0.95); border: 1px solid var(--panel-border); color: var(--text-color); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+      <span class="modal-close" onclick="fecharModal('modalAddTrack')" style="float: right; cursor: pointer; font-size: 24px; color: #aaa; transition: color 0.2s;">&times;</span>
+      <h3 style="margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; color: #fff;">Nova Trilha</h3>
+      
+      <div style="margin-top: 15px;">
+        <label for="newTrackName" style="margin-bottom: 5px; font-size: 13px; color: #bbb;">Nome da Trilha:</label>
+        <input type="text" id="newTrackName" placeholder="Ex: Voz, Violão, Baixo" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: #121214; color: #fff; box-sizing: border-box; outline: none; font-size: 14px; margin-top: 5px;">
+      </div>
+      
+      <div style="margin-top: 15px;">
+        <label style="margin-bottom: 5px; font-size: 13px; color: #bbb;">Cor da Legenda:</label>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; margin-bottom: 12px;" id="trackColorPresets">
+          <div class="color-preset" data-color="#ff5555" style="width: 24px; height: 24px; border-radius: 50%; background: #ff5555; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#55ff55" style="width: 24px; height: 24px; border-radius: 50%; background: #55ff55; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#5555ff" style="width: 24px; height: 24px; border-radius: 50%; background: #5555ff; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#ffff55" style="width: 24px; height: 24px; border-radius: 50%; background: #ffff55; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#ff55ff" style="width: 24px; height: 24px; border-radius: 50%; background: #ff55ff; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#55ffff" style="width: 24px; height: 24px; border-radius: 50%; background: #55ffff; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#ffaa00" style="width: 24px; height: 24px; border-radius: 50%; background: #ffaa00; cursor: pointer; border: 2px solid transparent;"></div>
+          <div class="color-preset" data-color="#8b5cf6" style="width: 24px; height: 24px; border-radius: 50%; background: #8b5cf6; cursor: pointer; border: 2px solid transparent;"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="color" id="newTrackColor" value="#ff5555" style="width: 40px; height: 35px; border: none; padding: 0; background: none; cursor: pointer;">
+          <span style="font-size: 13px; color: #888;">Ou escolha uma cor personalizada</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="fecharModal('modalAddTrack')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; width: auto; margin-top: 0; font-weight: normal;">Cancelar</button>
+        <button id="btnConfirmAddTrack" style="background: var(--accent); border: none; color: #fff; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; width: auto; margin-top: 0;">Criar Trilha</button>
+      </div>
+    </div>
   </div>
 
   <!-- JavaScript Principal do Motor DAW -->
@@ -1255,11 +1496,23 @@
     let loop = false;
     let metronome = false;
     let cutMode = false;
+    let regionMode = false;
+    let regionSelectionActive = false;
+    let selectionStart = null;
+    let selectionEnd = null;
+    let selectionTrackId = null;
+    let selectionTrackRowElement = null;
+    let isSelectingRegion = false;
+    let activeInputDeviceId = "";
+    let activeOutputDeviceId = "";
     let timelinePosition = 0; // Posição atual do cursor (em segundos)
     let playbackStartTime = 0; // Hora de início do contexto de áudio
     let isPlaying = false;
     let tracks = [];
     let activeNodes = [];
+    let activeMonitors = new Map(); // trackId -> { stream, sourceNode, monitorGain, monitorPanner, analyser, chain }
+    let playbackAnalysers = new Map(); // trackId -> AnalyserNode
+    let vuAnimationId = null;
     let undoHistory = [];
     let metronomeTimer = null;
     let activeTrackChains = {};
@@ -1267,6 +1520,7 @@
     let selectedTrackId = null;
     let selectedRegionId = null;
     let selectedRegionTrackId = null;
+    let clipboardRegion = null;
     let tomAtual = 'C';
     const TONE_ORDER = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
@@ -1278,6 +1532,9 @@
     let recordedChunks = [];
     let activeRecordTrackId = null;
     let recordStartTime = 0;
+    let recAnalyser = null;
+    let activeEditingEffectIndex = 0;
+    let fxSnapshotBackup = null;
 
     // Pro EQ (Visual) Frequências Logarítmicas e cache de filtros
     const PRO_EQ_BINS = 150;
@@ -1321,7 +1578,7 @@
 
 
     // Dimensões Visuais da Grid da Timeline
-    const PX_PER_SECOND = 40; // Zoom da grid (1 segundo = 40 pixels)
+    let PX_PER_SECOND = 40; // Zoom da grid (1 segundo = 40 pixels)
 
     // Configurando conexões Master
     // Cadeia: EQ Low -> EQ Mid -> EQ High -> Compressor -> MasterGain -> Destination
@@ -1433,11 +1690,53 @@
       }
     }
 
+    // Converter AudioBuffer para MP3 (Blob) usando lamejs
+    function bufferToMp3(audioBuffer) {
+      const channels = audioBuffer.numberOfChannels;
+      const sampleRate = audioBuffer.sampleRate;
+      const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128); // 128 kbps
+      const mp3Data = [];
+
+      const sampleBlockSize = 1152;
+      const left = audioBuffer.getChannelData(0);
+      const right = channels > 1 ? audioBuffer.getChannelData(1) : new Float32Array(left.length);
+
+      // Converter Float32Array PCM para Int16Array PCM
+      const leftInt = new Int16Array(left.length);
+      const rightInt = new Int16Array(right.length);
+      for (let i = 0; i < left.length; i++) {
+        leftInt[i] = Math.min(1, Math.max(-1, left[i])) * 32767;
+        rightInt[i] = Math.min(1, Math.max(-1, right[i])) * 32767;
+      }
+
+      for (let i = 0; i < left.length; i += sampleBlockSize) {
+        const leftChunk = leftInt.subarray(i, i + sampleBlockSize);
+        const rightChunk = rightInt.subarray(i, i + sampleBlockSize);
+        let mp3buf;
+        if (channels === 2) {
+          mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+        } else {
+          mp3buf = mp3encoder.encodeBuffer(leftChunk);
+        }
+        if (mp3buf.length > 0) {
+          mp3Data.push(mp3buf);
+        }
+      }
+
+      const mp3buf = mp3encoder.flush();
+      if (mp3buf.length > 0) {
+        mp3Data.push(mp3buf);
+      }
+
+      return new Blob(mp3Data, { type: 'audio/mp3' });
+    }
+
     // Salvar Snapshot do histórico para Desfazer
     function saveHistory() {
       const snapshot = JSON.stringify(tracks.map(t => ({
         id: t.id,
         name: t.name,
+        color: t.color || '#8b5cf6',
         volume: t.volume,
         pan: t.pan,
         muted: t.muted,
@@ -1466,6 +1765,7 @@
         const fullTrack = {
           id: t.id,
           name: t.name,
+          color: t.color || '#8b5cf6',
           volume: t.volume,
           pan: t.pan,
           muted: t.muted,
@@ -1514,7 +1814,14 @@
           return;
         }
 
-        if (effect.type === 'eq') {
+        if (effect.type === 'pitch_shift') {
+          chain.effects.push({
+            type: 'pitch_shift',
+            bypassed: false,
+            semitones: parseFloat(effect.params.semitones || 0)
+          });
+        }
+        else if (effect.type === 'eq') {
           const lowNode = context.createBiquadFilter();
           lowNode.type = 'lowshelf';
           lowNode.frequency.value = 220;
@@ -1832,6 +2139,8 @@
     }
 
     function rebuildSignalChains() {
+      rebuildMonitorSignalChains();
+      
       if (!isPlaying) return;
       
       const delta = audioCtx.currentTime - playbackStartTime;
@@ -1936,10 +2245,315 @@
     // 🎛️ PER-TRACK FX INSERT RACK CONTROLLER
     // =========================================================================
 
+    function getEffectTitle(type) {
+      if (type === 'pitch_shift') return "Alteração de Tom";
+      if (type === 'pitch_correction') return "Auto-Tune";
+      if (type === 'pro_eq') return "Pro EQ (7 Bandas)";
+      if (type === 'eq') return "Equalizador (EQ)";
+      if (type === 'delay') return "Stereo Delay";
+      if (type === 'reverb') return "Reverb";
+      if (type === 'distortion') return "Distortion";
+      return type;
+    }
+
+    function generateSidebarEffectControls(effect, index) {
+      let controlsHtml = "";
+
+      if (effect.type === 'pitch_shift') {
+          controlsHtml = `
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Semitons <span id="val-semitones-${index}">${effect.params.semitones > 0 ? '+' : ''}${effect.params.semitones}</span></label>
+                  <input type="range" min="-12" max="12" step="1" value="${effect.params.semitones}" oninput="atualizarParametroEfeito('${index}', 'semitones', this.value);" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      } else if (effect.type === 'pitch_correction') {
+          const keys = TONE_ORDER;
+          const scales = { major: "Maior", minor: "Menor", chromatic: "Cromática" };
+
+          controlsHtml = `
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <div class="fx-select-group" style="flex: 1;">
+                    <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 3px;">Tom</label>
+                    <select onchange="atualizarParametroEfeito('${index}', 'key', this.value)" style="width: 100%; background: rgba(10,15,30,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; padding: 4px; font-size: 11px; outline: none;">
+                        ${keys.map(k => `<option value="${k}" ${effect.params.key === k ? 'selected' : ''}>${k}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="fx-select-group" style="flex: 1;">
+                    <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 3px;">Escala</label>
+                    <select onchange="atualizarParametroEfeito('${index}', 'scale', this.value)" style="width: 100%; background: rgba(10,15,30,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; padding: 4px; font-size: 11px; outline: none;">
+                        ${Object.entries(scales).map(([val, name]) => `<option value="${val}" ${effect.params.scale === val ? 'selected' : ''}>${name}</option>`).join('')}
+                    </select>
+                </div>
+              </div>
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Intensidade <span id="val-intensity-${index}">${effect.params.intensity}%</span></label>
+                  <input type="range" min="0" max="100" value="${effect.params.intensity}" oninput="atualizarParametroEfeito('${index}', 'intensity', this.value)" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Humanize <span id="val-humanize-${index}">${effect.params.humanize}%</span></label>
+                  <input type="range" min="0" max="100" value="${effect.params.humanize}" oninput="atualizarParametroEfeito('${index}', 'humanize', this.value)" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      } else if (effect.type === 'pro_eq') {
+          const band = effect.selectedBand || 'lf';
+          const activeParam = `${band}_active`;
+          const freqParam = `${band}_freq`;
+          const gainParam = `${band}_gain`;
+          const qParam = `${band}_q`;
+
+          const isActive = effect.params[activeParam];
+          const freqVal = effect.params[freqParam];
+          const gainVal = effect.params[gainParam];
+          const qVal = effect.params[qParam];
+
+          let freqMin = 20, freqMax = 20000;
+          if (band === 'lc') { freqMin = 10; freqMax = 500; }
+          else if (band === 'lf') { freqMin = 30; freqMax = 800; }
+          else if (band === 'lmf') { freqMin = 100; freqMax = 2000; }
+          else if (band === 'mf') { freqMin = 500; freqMax = 5000; }
+          else if (band === 'hmf') { freqMin = 1000; freqMax = 10000; }
+          else if (band === 'hf') { freqMin = 2000; freqMax = 20000; }
+          else if (band === 'hc') { freqMin = 1000; freqMax = 22000; }
+
+          const hasGain = (band !== 'lc' && band !== 'hc');
+          const hasQ = (band !== 'lf' && band !== 'hf');
+
+          controlsHtml = `
+              <div class="pro-eq-container" style="display:flex; flex-direction:column; gap:6px; width:100%;">
+                <canvas class="pro-eq-canvas" id="proEqCanvasSidebar-${index}" width="220" height="90" style="width: 100%; height: 90px; border-radius: 6px; background: #0a0d18; border: 1px solid rgba(255,255,255,0.08);"></canvas>
+                
+                <div class="pro-eq-band-selector" style="display:flex; gap:2px; justify-content:space-between; margin-bottom:4px;">
+                  ${['lc', 'lf', 'lmf', 'mf', 'hmf', 'hf', 'hc'].map(b => `
+                    <button class="eq-band-tab ${band === b ? 'active' : ''}" style="flex:1; padding:3px; font-size:9px; font-weight:bold; background:${band === b ? 'var(--accent)' : 'rgba(255,255,255,0.03)'}; border:1px solid rgba(255,255,255,0.06); color:#fff; border-radius:3px; cursor:pointer;" onclick="mudarBandaEqSidebar('${index}', '${b}', event)">
+                      ${b.toUpperCase()}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                  <span style="font-size:10px; font-weight:bold; color:var(--text-muted);">${band.toUpperCase()} ativo:</span>
+                  <input type="checkbox" ${isActive ? 'checked' : ''} onchange="atualizarParametroEfeito('${index}', '${activeParam}', this.checked); redesenharEqSidebar(${index});" style="cursor:pointer;">
+                </div>
+                
+                <div class="fx-slider-group" style="margin-bottom:4px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Frequência <span id="val-${freqParam}-${index}">${freqVal} Hz</span></label>
+                  <input type="range" min="${freqMin}" max="${freqMax}" value="${freqVal}" oninput="atualizarParametroEfeito('${index}', '${freqParam}', this.value); redesenharEqSidebar(${index});" style="width: 100%; margin: 0;">
+                </div>
+          `;
+
+          if (hasGain) {
+            controlsHtml += `
+                <div class="fx-slider-group" style="margin-bottom:4px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Ganho <span id="val-${gainParam}-${index}">${gainVal > 0 ? '+' : ''}${gainVal} dB</span></label>
+                  <input type="range" min="-15" max="15" step="0.5" value="${gainVal}" oninput="atualizarParametroEfeito('${index}', '${gainParam}', this.value); redesenharEqSidebar(${index});" style="width: 100%; margin: 0;">
+                </div>
+            `;
+          }
+
+          if (hasQ) {
+            let qMax = (band === 'lc' || band === 'hc') ? 2.0 : 10.0;
+            controlsHtml += `
+                <div class="fx-slider-group" style="margin-bottom:4px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Q <span id="val-${qParam}-${index}">${qVal}</span></label>
+                  <input type="range" min="0.1" max="${qMax}" step="0.1" value="${qVal}" oninput="atualizarParametroEfeito('${index}', '${qParam}', this.value); redesenharEqSidebar(${index});" style="width: 100%; margin: 0;">
+                </div>
+            `;
+          }
+          
+          controlsHtml += `</div>`;
+      } else if (effect.type === 'eq') {
+          controlsHtml = `
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Grave <span id="val-bass-${index}">${effect.params.bass > 0 ? '+' : ''}${effect.params.bass} dB</span></label>
+                  <input type="range" min="-15" max="15" step="0.5" value="${effect.params.bass}" oninput="atualizarParametroEfeito('${index}', 'bass', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Médio <span id="val-mid-${index}">${effect.params.mid > 0 ? '+' : ''}${effect.params.mid} dB</span></label>
+                  <input type="range" min="-15" max="15" step="0.5" value="${effect.params.mid}" oninput="atualizarParametroEfeito('${index}', 'mid', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Agudo <span id="val-treble-${index}">${effect.params.treble > 0 ? '+' : ''}${effect.params.treble} dB</span></label>
+                  <input type="range" min="-15" max="15" step="0.5" value="${effect.params.treble}" oninput="atualizarParametroEfeito('${index}', 'treble', this.value);" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      } else if (effect.type === 'delay') {
+          controlsHtml = `
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Atraso <span id="val-delayTime-${index}">${effect.params.delayTime}s</span></label>
+                  <input type="range" min="0.05" max="1.0" step="0.05" value="${effect.params.delayTime}" oninput="atualizarParametroEfeito('${index}', 'delayTime', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Feedback <span id="val-feedback-${index}">${Math.round(effect.params.feedback * 100)}%</span></label>
+                  <input type="range" min="0" max="0.95" step="0.05" value="${effect.params.feedback}" oninput="atualizarParametroEfeito('${index}', 'feedback', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Mix <span id="val-mix-${index}">${Math.round(effect.params.mix * 100)}%</span></label>
+                  <input type="range" min="0" max="1.0" step="0.05" value="${effect.params.mix}" oninput="atualizarParametroEfeito('${index}', 'mix', this.value);" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      } else if (effect.type === 'reverb') {
+          controlsHtml = `
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Sala <span id="val-size-${index}">${parseFloat(effect.params.size).toFixed(1)}</span></label>
+                  <input type="range" min="0.1" max="10.0" step="0.1" value="${effect.params.size}" oninput="atualizarParametroEfeito('${index}', 'size', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Mix <span id="val-mix-${index}">${Math.round(effect.params.mix * 100)}%</span></label>
+                  <input type="range" min="0" max="1.0" step="0.05" value="${effect.params.mix}" oninput="atualizarParametroEfeito('${index}', 'mix', this.value);" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      } else if (effect.type === 'distortion') {
+          controlsHtml = `
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Drive <span id="val-drive-${index}">${Math.round(effect.params.drive)}%</span></label>
+                  <input type="range" min="0" max="100" value="${effect.params.drive}" oninput="atualizarParametroEfeito('${index}', 'drive', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group" style="margin-bottom: 6px;">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Tom <span id="val-tone-${index}">${effect.params.tone} Hz</span></label>
+                  <input type="range" min="200" max="10000" step="100" value="${effect.params.tone}" oninput="atualizarParametroEfeito('${index}', 'tone', this.value);" style="width: 100%; margin: 0;">
+              </div>
+              <div class="fx-slider-group">
+                  <label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;">Volume <span id="val-level-${index}">${Math.round(effect.params.level * 100)}%</span></label>
+                  <input type="range" min="0" max="1.0" step="0.05" value="${effect.params.level}" oninput="atualizarParametroEfeito('${index}', 'level', this.value);" style="width: 100%; margin: 0;">
+              </div>
+          `;
+      }
+
+      return controlsHtml;
+    }
+
+    function renderTrackInspector() {
+      const container = document.getElementById('trackInspectorSection');
+      if (!container) return;
+
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+            Selecione uma trilha para gerenciar efeitos.
+          </div>
+        `;
+        return;
+      }
+
+      let html = `
+        <div style="margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #fff;">
+              🎛️ Efeitos da Trilha
+            </h4>
+            <span style="font-size: 11px; background: ${track.color || 'var(--accent)'}; color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: bold; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${track.name}
+            </span>
+          </div>
+        </div>
+        
+        <div class="sidebar-fx-list" style="display: flex; flex-direction: column; gap: 8px;">
+      `;
+
+      if (!track.effects || track.effects.length === 0) {
+        html += `
+          <div style="text-align: center; padding: 16px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
+            Nenhum efeito nesta trilha.
+          </div>
+        `;
+      } else {
+        track.effects.forEach((effect, index) => {
+          let title = getEffectTitle(effect.type);
+          let active = effect.active;
+          let expanded = effect.expanded !== false;
+
+          html += `
+            <div class="sidebar-fx-slot" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; overflow: hidden; transition: border-color 0.2s;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); cursor: pointer;" onclick="toggleExpandEfeitoSidebar(${index}, event)">
+                <span style="font-size: 12px; font-weight: bold; color: ${active ? '#fff' : 'var(--text-muted)'}; display: flex; align-items: center; gap: 6px;">
+                  <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${active ? '#10b981' : '#ef4444'};"></span>
+                  ${title}
+                </span>
+                <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation();">
+                  <button onclick="toggleEfeitoBypassSidebar(${index})" style="background: none; border: none; color: ${active ? 'var(--accent)' : '#6b7280'}; cursor: pointer; font-size: 13px; font-weight: bold; padding: 2px 4px; margin-top: 0; width: auto;" title="Bypass">⏻</button>
+                  <button onclick="removerEfeitoSidebar(${index})" style="background: none; border: none; color: #f43f5e; cursor: pointer; font-size: 15px; padding: 2px 4px; margin-top: 0; width: auto;" title="Remover">&times;</button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `
+        </div>
+        
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 6px;">
+          <select id="selectSidebarNewFx" style="flex: 1; min-width: 0; background: rgba(10, 15, 30, 0.85); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 6px; color: #fff; padding: 6px 10px; font-family: inherit; font-size: 12px; outline: none; cursor: pointer;">
+            <option value="pro_eq">Pro EQ (Visual)</option>
+            <option value="eq">Equalizador (EQ)</option>
+            <option value="delay">Delay de Eco</option>
+            <option value="reverb">Reverb de Sala</option>
+            <option value="pitch_correction">Auto-Tune</option>
+            <option value="distortion">Distorção / Overdrive</option>
+            <option value="pitch_shift">Alteração de Tom</option>
+          </select>
+          <button onclick="adicionarEfeitoSidebarTrilha()" style="background: var(--accent); border: none; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: filter 0.2s; width: auto; margin-top: 0;">
+            ➕ Inserir
+          </button>
+        </div>
+      `;
+
+      container.innerHTML = html;
+
+      // Renderiza as curvas de EQ logo após montar o HTML no DOM
+      if (track && track.effects) {
+        track.effects.forEach((effect, index) => {
+          if (effect.type === 'pro_eq' && effect.expanded !== false) {
+            redesenharEqSidebar(index);
+          }
+        });
+      }
+    }
+
+    function toggleExpandEfeitoSidebar(index, event) {
+      abrirModalFx(index);
+    }
+
+    function toggleEfeitoBypassSidebar(index) {
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track || !track.effects[index]) return;
+      track.effects[index].active = !track.effects[index].active;
+      renderTrackInspector();
+      renderDAW();
+      if (isPlaying) rebuildSignalChains();
+    }
+
+    function removerEfeitoSidebar(index) {
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track) return;
+      saveHistory();
+      track.effects.splice(index, 1);
+      renderTrackInspector();
+      renderDAW();
+      if (isPlaying) rebuildSignalChains();
+    }
+
+    function mudarBandaEqSidebar(effectIndex, band, event) {
+      event.stopPropagation();
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track || !track.effects[effectIndex]) return;
+      track.effects[effectIndex].selectedBand = band;
+      renderTrackInspector();
+    }
+
+    function redesenharEqSidebar(index) {
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track || !track.effects[index]) return;
+      const canvas = document.getElementById(`proEqCanvasSidebar-${index}`);
+      if (canvas) {
+        drawProEqCurve(canvas, track.effects[index].params);
+      }
+    }
+
     function selecionarTrilha(trackId) {
       selectedTrackId = trackId;
       renderDAW();
-      // A renderização do FX agora é feita ao abrir o modal
     }
 
     function renderFxModal() {
@@ -1952,76 +2566,201 @@
             return;
         }
 
-        // Header do Modal
-        let headerHtml = `
-            <div class="fx-rack-header">
-                <h3>Efeitos da Trilha: ${track.name}</h3>
-                <button onclick="fecharModalFx()" style="background:transparent; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">&times;</button>
-            </div>
-            <div class="fx-slots-list" id="fxSlotsList">
-        `;
-
-        let slotsHtml = "";
-        if (!track.effects || track.effects.length === 0) {
-            slotsHtml = `<div class="fx-empty-state">Nenhum efeito carregado. Adicione um efeito na barra lateral.</div>`;
-        } else {
-            track.effects.forEach((effect, index) => {
-                let title = "";
-                let controlsHtml = "";
-
-                if (effect.type === 'pitch_correction') {
-                    title = "Pitch Correction (Auto-Tune)";
-                    const keys = TONE_ORDER;
-                    const scales = { major: "Maior", minor: "Menor", chromatic: "Cromática" };
-
-                    controlsHtml = `
-                        <div class="fx-select-group">
-                            <label>Tom</label>
-                            <select onchange="atualizarParametroEfeito('${index}', 'key', this.value)">
-                                ${keys.map(k => `<option value="${k}" ${effect.params.key === k ? 'selected' : ''}>${k}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="fx-select-group">
-                            <label>Escala</label>
-                            <select onchange="atualizarParametroEfeito('${index}', 'scale', this.value)">
-                                ${Object.entries(scales).map(([val, name]) => `<option value="${val}" ${effect.params.scale === val ? 'selected' : ''}>${name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="fx-slider-group">
-                            <label>Intensidade <span id="valTrackPitchIntensity-${index}">${effect.params.intensity}%</span></label>
-                            <input type="range" min="0" max="100" value="${effect.params.intensity}" oninput="atualizarParametroEfeito('${index}', 'intensity', this.value)">
-                        </div>
-                        <div class="fx-slider-group">
-                            <label>Humanize <span id="valTrackPitchHumanize-${index}">${effect.params.humanize}%</span></label>
-                            <input type="range" min="0" max="100" value="${effect.params.humanize}" oninput="atualizarParametroEfeito('${index}', 'humanize', this.value)">
-                        </div>
-                    `;
-                } else if (effect.type === 'pro_eq') {
-                    title = "Pro EQ (7 Bandas)";
-                    // ... (código do Pro EQ)
-                } else {
-                    // Lógica para outros efeitos (EQ, Delay, etc.)
-                    // ... (código existente para outros efeitos)
-                }
-
-                slotsHtml += `
-                    <div class="fx-slot-item" data-effect-index="${index}">
-                        <div class="fx-slot-header">
-                            <span class="fx-slot-title">⚡ ${title}</span>
-                            <div class="fx-slot-actions">
-                                <button class="fx-bypass-btn ${effect.active ? 'active' : ''}" onclick="toggleEfeitoBypass('${index}')" title="Bypass Efeito">⏻</button>
-                                <button onclick="removerEfeitoTrilha('${index}')" title="Remover Efeito">&times;</button>
-                            </div>
-                        </div>
-                        <div class="fx-slot-controls">
-                            ${controlsHtml}
-                        </div>
-                    </div>
-                `;
-            });
+        if (!track.effects) track.effects = [];
+        
+        if (activeEditingEffectIndex >= track.effects.length) {
+            activeEditingEffectIndex = track.effects.length - 1;
+        }
+        if (track.effects.length > 0 && activeEditingEffectIndex < 0) {
+            activeEditingEffectIndex = 0;
         }
 
-        container.innerHTML = headerHtml + slotsHtml + `</div>`;
+        let html = `
+            <div class="fx-rack-layout" style="display: flex; height: 540px; gap: 16px; min-width: 730px;">
+                <!-- Painel esquerdo: Abas de Efeitos -->
+                <div class="fx-modal-sidebar" style="width: 170px; border-right: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto; flex-shrink: 0;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Efeitos Carregados</h4>
+                    <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto;">
+                        ${track.effects.map((effect, idx) => `
+                            <div class="fx-tab-item" 
+                                 style="padding: 8px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${activeEditingEffectIndex === idx ? 'var(--accent)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${activeEditingEffectIndex === idx ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}; color: #fff;"
+                                 onclick="selecionarEfeitoParaEditar(${idx})">
+                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;">
+                                  ${getEffectTitle(effect.type)}
+                                </span>
+                                <span style="font-size: 11px; cursor: pointer; padding: 2px; opacity: 0.8;" onclick="event.stopPropagation(); toggleEfeitoBypassModal(${idx});" title="Ligar/Desligar">
+                                  ${effect.active ? '⏻' : '⏸'}
+                                </span>
+                            </div>
+                        `).join('')}
+                        ${track.effects.length === 0 ? '<span style="font-size:11px; color:var(--text-muted); text-align:center; padding: 20px 0;">Nenhum efeito</span>' : ''}
+                    </div>
+                    
+                    <!-- Adicionar Efeito dentro do modal -->
+                    <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+                        <select id="selectModalNewFx" style="width: 100%; background: rgba(10,15,30,0.8); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; padding: 5px; font-size: 11px; outline: none; margin-bottom: 6px; cursor: pointer;">
+                            <option value="pro_eq">Pro EQ (Visual)</option>
+                            <option value="eq">Equalizador (EQ)</option>
+                            <option value="delay">Delay de Eco</option>
+                            <option value="reverb">Reverb de Sala</option>
+                            <option value="pitch_correction">Auto-Tune</option>
+                            <option value="distortion">Distorção / Overdrive</option>
+                            <option value="pitch_shift">Alteração de Tom</option>
+                        </select>
+                        <button onclick="adicionarEfeitoModal()" style="width: 100%; background: var(--accent); border: none; color: #fff; padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; margin-top: 0;">➕ Adicionar</button>
+                    </div>
+                </div>
+
+                <!-- Painel direito: Detalhes do Efeito Ativo -->
+                <div class="fx-modal-details" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding-left: 4px;">
+        `;
+        if (activeEditingEffectIndex >= 0 && track.effects[activeEditingEffectIndex]) {
+            const effect = track.effects[activeEditingEffectIndex];
+            const title = getEffectTitle(effect.type);
+            
+            // Reutiliza o formulário da sidebar, ajustando id do canvas para o modal
+            let controlsHtml = generateSidebarEffectControls(effect, activeEditingEffectIndex);
+            // Substitui id do canvas para evitar colisões e redimensiona
+            controlsHtml = controlsHtml.replace(`id="proEqCanvasSidebar-${activeEditingEffectIndex}"`, `id="proEqCanvasModal-${activeEditingEffectIndex}"`);
+            controlsHtml = controlsHtml.replace('width="220" height="90"', 'width="700" height="250"');
+            controlsHtml = controlsHtml.replace('height: 90px;', 'height: 250px;');
+            controlsHtml = controlsHtml.replaceAll(`redesenharEqSidebar(${activeEditingEffectIndex})`, `redesenharEq(${activeEditingEffectIndex})`);
+            controlsHtml = controlsHtml.replaceAll(`mudarBandaEqSidebar`, `mudarBandaEqModal`);
+
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px;">
+                    <h3 style="margin: 0; font-size: 15px; color: #fff;">⚡ ${title}</h3>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; color: #ccc;">
+                      <input type="checkbox" ${effect.active ? 'checked' : ''} onchange="atualizarParametroEfeito('${activeEditingEffectIndex}', 'active', this.checked); renderFxModal();"> Ativo
+                    </label>
+                </div>
+                <div class="fx-slot-controls" style="flex: 1;">
+                    ${controlsHtml}
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 13px; text-align: center;">
+                    Selecione um efeito na lista à esquerda ou adicione um novo para começar a editar.
+                </div>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+
+            <!-- Botões de Ação Inferiores -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+                <button onclick="cancelarAlteracoesFx()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; width: auto; margin-top: 0; font-weight: normal;">Cancelar</button>
+                <button onclick="confirmarAlteracoesFx()" style="background: var(--accent); border: none; color: #fff; padding: 6px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; width: auto; margin-top: 0;">Ok</button>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // Renderiza as curvas de EQ logo após montar o HTML no DOM
+        setTimeout(() => {
+            if (track && track.effects[activeEditingEffectIndex] && track.effects[activeEditingEffectIndex].type === 'pro_eq') {
+                redesenharEq(activeEditingEffectIndex);
+            }
+        }, 50);
+    }
+
+    function selecionarEfeitoParaEditar(idx) {
+        activeEditingEffectIndex = idx;
+        renderFxModal();
+    }
+
+    function toggleEfeitoBypassModal(idx) {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        if (!track || !track.effects[idx]) return;
+        track.effects[idx].active = !track.effects[idx].active;
+        renderFxModal();
+        renderDAW();
+        if (isPlaying) rebuildSignalChains();
+    }
+
+    function adicionarEfeitoModal() {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        if (!track) return;
+        const select = document.getElementById('selectModalNewFx');
+        const type = select.value;
+        let newFx = {
+            type: type,
+            active: true,
+            params: {}
+        };
+        if (type === 'pro_eq') {
+            newFx.params = {
+                lc_freq: 20, lc_q: 0.7, lc_active: true,
+                lf_freq: 80, lf_gain: 0, lf_q: 0.7, lf_active: true,
+                lmf_freq: 200, lmf_gain: 0, lmf_q: 1.0, lmf_active: true,
+                mf_freq: 1000, mf_gain: 0, mf_q: 1.0, mf_active: true,
+                hmf_freq: 2500, hmf_gain: 0, hmf_q: 1.0, hmf_active: true,
+                hf_freq: 8000, hf_gain: 0, hf_q: 0.7, hf_active: true,
+                hc_freq: 20000, hc_q: 0.7, hc_active: true
+            };
+            newFx.selectedBand = 'lf';
+        } else if (type === 'eq') {
+            newFx.params = { bass: 0, mid: 0, treble: 0 };
+        } else if (type === 'delay') {
+            newFx.params = { delayTime: 0.3, feedback: 0.4, mix: 0.3 };
+        } else if (type === 'reverb') {
+            newFx.params = { size: 2.0, mix: 0.3 };
+        } else if (type === 'distortion') {
+            newFx.params = { drive: 30, tone: 3000, level: 0.8 };
+        } else if (type === 'pitch_correction') {
+            newFx.params = { key: 'C', scale: 'major', intensity: 50, humanize: 10 };
+        } else if (type === 'pitch_shift') {
+            newFx.params = { semitones: 0 };
+        }
+        
+        if (!track.effects) track.effects = [];
+        track.effects.push(newFx);
+        activeEditingEffectIndex = track.effects.length - 1;
+        
+        renderFxModal();
+        renderDAW();
+        if (isPlaying) rebuildSignalChains();
+    }
+
+    function mudarBandaEqModal(effectIndex, band, event) {
+        event.stopPropagation();
+        const track = tracks.find(t => t.id === selectedTrackId);
+        if (!track || !track.effects[effectIndex]) return;
+        track.effects[effectIndex].selectedBand = band;
+        renderFxModal();
+    }
+
+    function confirmarAlteracoesFx() {
+        fecharModalFx();
+        renderDAW();
+    }
+
+    function cancelarAlteracoesFx() {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        if (track && fxSnapshotBackup) {
+            track.effects = JSON.parse(fxSnapshotBackup);
+            renderDAW();
+            if (isPlaying) rebuildSignalChains();
+        }
+        fecharModalFx();
+    }
+
+    function redesenharEq(index) {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        if (!track || !track.effects[index]) return;
+        
+        const canvasModal = document.getElementById(`proEqCanvasModal-${index}`);
+        if (canvasModal) {
+            drawProEqCurve(canvasModal, track.effects[index].params);
+        }
+
+        const canvasSidebar = document.getElementById(`proEqCanvasSidebar-${index}`);
+        if (canvasSidebar) {
+            drawProEqCurve(canvasSidebar, track.effects[index].params);
+        }
     }
 
 
@@ -2222,12 +2961,17 @@
           intensity: 50, 
           humanize: 10 
         };
+      } else if (type === 'pitch_shift') {
+        newFx.params = {
+          semitones: 0
+        };
       }
 
+      newFx.expanded = true;
       if (!track.effects) track.effects = [];
       track.effects.push(newFx);
       renderDAW();
-      abrirModalFx(); // Abre o modal automaticamente
+      abrirModalFx(track.effects.length - 1);
 
       if (isPlaying) {
         rebuildSignalChains();
@@ -2280,6 +3024,29 @@
         effect.params[param] = valConverted;
 
         // Atualizar UI
+        const generalLabel = document.getElementById(`val-${param}-${index}`);
+        if (generalLabel) {
+            if (param.endsWith('_freq') || param === 'tone') {
+                generalLabel.textContent = `${valConverted} Hz`;
+            } else if (param.endsWith('_gain') || param === 'bass' || param === 'mid' || param === 'treble') {
+                generalLabel.textContent = `${valConverted > 0 ? '+' : ''}${valConverted} dB`;
+            } else if (param === 'mix' || param === 'feedback' || param === 'level' || param === 'drive') {
+                if (param === 'mix' || param === 'feedback' || param === 'level') {
+                    generalLabel.textContent = `${Math.round(valConverted * 100)}%`;
+                } else {
+                    generalLabel.textContent = `${Math.round(valConverted)}%`;
+                }
+            } else if (param === 'size' || param === 'delayTime') {
+                if (param === 'delayTime') {
+                    generalLabel.textContent = `${valConverted}s`;
+                } else {
+                    generalLabel.textContent = parseFloat(valConverted).toFixed(1);
+                }
+            } else {
+                generalLabel.textContent = valConverted;
+            }
+        }
+
         const labelId = `valTrackPitch${param.charAt(0).toUpperCase() + param.slice(1)}-${index}`;
         const labelEl = document.getElementById(labelId);
         if (labelEl) {
@@ -2301,15 +3068,17 @@
     // =========================================================================
 
     // Adicionar nova trilha na DAW
-    function addTrack(name = `Trilha ${tracks.length + 1}`, type = 'audio') {
+    function addTrack(name = `Trilha ${tracks.length + 1}`, type = 'audio', color = '#8b5cf6') {
       const track = {
         id: `track-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         name: name,
         type: type, // 'audio' ou 'instrument'
+        color: color,
         volume: 100, // 0 a 150
         pan: 0, // -100 a 100
         muted: false,
         soloed: false,
+        monitoring: false,
         effects: [],
         regions: [], // Para 'audio', contém clips de áudio
         midiClips: [], // Para 'instrument', contém clips MIDI
@@ -2322,11 +3091,150 @@
     // Remover trilha
     function deleteTrack(trackId) {
       saveHistory();
+      stopMonitoring(trackId);
       tracks = tracks.filter(t => t.id !== trackId);
       renderDAW();
     }
 
-    function abrirModalFx() {
+    function deletarTrilhaSelecionada() {
+      if (!selectedTrackId) return alert("Selecione uma trilha para apagar!");
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track) return;
+      if (confirm(`Deseja realmente apagar a trilha "${track.name}"?`)) {
+        deleteTrack(selectedTrackId);
+      }
+    }
+
+    function duplicarTrilhaSelecionada() {
+      if (!selectedTrackId) return alert("Selecione uma trilha para duplicar!");
+      const sourceTrack = tracks.find(t => t.id === selectedTrackId);
+      if (!sourceTrack) return;
+
+      saveHistory();
+
+      const duplicatedTrack = {
+        id: `track-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: `${sourceTrack.name} (Cópia)`,
+        type: sourceTrack.type,
+        color: sourceTrack.color,
+        volume: sourceTrack.volume,
+        pan: sourceTrack.pan,
+        muted: sourceTrack.muted,
+        soloed: sourceTrack.soloed,
+        monitoring: false,
+        effects: JSON.parse(JSON.stringify(sourceTrack.effects || [])),
+        regions: (sourceTrack.regions || []).map(r => ({
+          id: `region-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          name: r.name,
+          startTime: r.startTime,
+          duration: r.duration,
+          offset: r.offset ?? 0,
+          bufferKey: r.bufferKey,
+          gain: r.gain ?? 1.0,
+          fadeIn: r.fadeIn ?? 0.0,
+          fadeOut: r.fadeOut ?? 0.0,
+          buffer: r.buffer
+        })),
+        midiClips: JSON.parse(JSON.stringify(sourceTrack.midiClips || [])),
+        instrument: sourceTrack.instrument ? JSON.parse(JSON.stringify(sourceTrack.instrument)) : null
+      };
+
+      // Inserir logo após a trilha original
+      const index = tracks.findIndex(t => t.id === selectedTrackId);
+      if (index !== -1) {
+        tracks.splice(index + 1, 0, duplicatedTrack);
+      } else {
+        tracks.push(duplicatedTrack);
+      }
+
+      selectedTrackId = duplicatedTrack.id;
+      renderDAW();
+    }
+
+    function copiarRegiaoSelecionada() {
+      if (!selectedRegionId || !selectedRegionTrackId) return;
+      const track = tracks.find(t => t.id === selectedRegionTrackId);
+      if (!track) return;
+      const region = track.regions.find(r => r.id === selectedRegionId);
+      if (!region) return;
+
+      clipboardRegion = {
+        name: region.name,
+        duration: region.duration,
+        offset: region.offset ?? 0,
+        bufferKey: region.bufferKey,
+        gain: region.gain ?? 1.0,
+        fadeIn: region.fadeIn ?? 0.0,
+        fadeOut: region.fadeOut ?? 0.0,
+        buffer: region.buffer
+      };
+    }
+
+    function recortarRegiaoSelecionada() {
+      if (!selectedRegionId || !selectedRegionTrackId) return;
+      copiarRegiaoSelecionada();
+
+      const track = tracks.find(t => t.id === selectedRegionTrackId);
+      if (!track) return;
+
+      saveHistory();
+      track.regions = track.regions.filter(r => r.id !== selectedRegionId);
+      selectedRegionId = null;
+      selectedRegionTrackId = null;
+
+      renderDAW();
+      if (isPlaying) {
+        stopActiveSources();
+        playDAW();
+      }
+    }
+
+    function colarRegiao() {
+      if (!clipboardRegion) return;
+      if (!selectedTrackId) return alert("Selecione uma trilha para colar!");
+
+      const targetTrack = tracks.find(t => t.id === selectedTrackId);
+      if (!targetTrack) return;
+
+      saveHistory();
+
+      const newRegion = {
+        id: `region-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: clipboardRegion.name + " (Colado)",
+        startTime: timelinePosition, // Cola na posição atual da agulha (playhead)
+        duration: clipboardRegion.duration,
+        offset: clipboardRegion.offset,
+        bufferKey: clipboardRegion.bufferKey,
+        gain: clipboardRegion.gain,
+        fadeIn: clipboardRegion.fadeIn,
+        fadeOut: clipboardRegion.fadeOut,
+        buffer: clipboardRegion.buffer
+      };
+
+      targetTrack.regions.push(newRegion);
+
+      // Seleciona o clipe recém colado
+      selectedRegionId = newRegion.id;
+      selectedRegionTrackId = targetTrack.id;
+
+      renderDAW();
+
+      if (isPlaying) {
+        stopActiveSources();
+        playDAW();
+      }
+    }
+
+    function abrirModalFx(effectIndex = 0) {
+      const track = tracks.find(t => t.id === selectedTrackId);
+      if (!track) return;
+      
+      // Faça um backup dos efeitos para o caso de cancelar
+      fxSnapshotBackup = JSON.stringify(track.effects || []);
+      
+      // Guarda qual efeito está ativo para edição
+      activeEditingEffectIndex = effectIndex;
+      
       renderFxModal();
       document.getElementById('modalFxRack').style.display = 'flex';
     }
@@ -2372,9 +3280,15 @@
 
         trackGain.connect(trackPanner);
 
+        // Criar analisador de playback para o VU meter
+        const playAnalyser = audioCtx.createAnalyser();
+        playAnalyser.fftSize = 256;
+        trackPanner.connect(playAnalyser);
+
         // Conecta a cadeia de efeitos local da trilha
-        const chain = buildTrackSignalChain(track, trackPanner, audioCtx, eqLow);
+        const chain = buildTrackSignalChain(track, playAnalyser, audioCtx, eqLow);
         activeTrackChains[track.id] = chain;
+        playbackAnalysers.set(track.id, playAnalyser);
 
         const playbackRate = getPlaybackRate();
         // Para simplificar, não aplicaremos pitch shift individual na reconstrução
@@ -2451,6 +3365,7 @@
 
       // Acionar loop visual
       updatePlayheadVisual();
+      checkStartVULoop();
 
       // Iniciar Metrônomo
       if (metronome) startMetronome();
@@ -2458,6 +3373,10 @@
 
     // Pausar Reprodução
     function pauseDAW() {
+      if (isPlaying) {
+        const delta = audioCtx.currentTime - playbackStartTime;
+        timelinePosition += delta;
+      }
       isPlaying = false;
       stopActiveSources();
       stopMetronome();
@@ -2484,6 +3403,7 @@
         } catch(e) {}
       });
       activeNodes = [];
+      playbackAnalysers.clear();
     }
 
     // Atualização visual do cursor de reprodução (Playhead)
@@ -2492,6 +3412,23 @@
 
       const delta = audioCtx.currentTime - playbackStartTime;
       const currentPos = timelinePosition + delta;
+
+      // Atualizar preview visual da gravação se estiver ativo
+      if (activeRecordTrackId && mediaRecorder && mediaRecorder.state === "recording") {
+        const duration = currentPos - recordStartTime;
+        const previewDiv = document.getElementById('recording-preview-clip');
+        if (previewDiv) {
+          previewDiv.style.width = `${Math.max(0, duration * PX_PER_SECOND)}px`;
+          const durationSpan = document.getElementById('recording-preview-duration');
+          if (durationSpan) {
+            durationSpan.textContent = `${Math.max(0, duration).toFixed(2)}s`;
+          }
+          const canvas = document.getElementById('recording-waveform-canvas');
+          if (canvas && recAnalyser) {
+            drawLiveWaveform(canvas, recAnalyser);
+          }
+        }
+      }
 
       // Limite do loop do projeto
       const maxTime = 180; // 3 minutos
@@ -2518,6 +3455,52 @@
       const sec = Math.floor(seconds % 60);
       const ms = Math.floor((seconds % 1) * 100);
       return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+    }
+
+    // Desenhar a waveform em tempo real usando o AnalyserNode do microfone
+    function drawLiveWaveform(canvas, analyser) {
+      const ctx = canvas.getContext('2d');
+      const width = canvas.offsetWidth;
+      const height = canvas.offsetHeight;
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteTimeDomainData(dataArray);
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Estilo da linha da waveform em tempo real (lilás/azul vibrante ou vermelho)
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ef4444'; 
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
+      ctx.beginPath();
+
+      const sliceWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+      
+      // Reseta shadow para outros desenhos
+      ctx.shadowBlur = 0;
     }
 
     // =========================================================================
@@ -2610,6 +3593,291 @@
       renderDAW();
     }
 
+    function cancelarSelecaoRegiao() {
+      selectionStart = null;
+      selectionEnd = null;
+      selectionTrackId = null;
+      selectionTrackRowElement = null;
+      isSelectingRegion = false;
+      const overlay = document.getElementById('selectionOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function apagarTrechoSelecionado() {
+      if (selectionStart === null || selectionEnd === null) return;
+      const tStart = Math.min(selectionStart, selectionEnd);
+      const tEnd = Math.max(selectionStart, selectionEnd);
+      if (tStart === tEnd) return;
+
+      saveHistory();
+
+      // Aplica apenas na trilha que foi arrastada
+      const targetTracks = selectionTrackId ? tracks.filter(t => t.id === selectionTrackId) : (selectedTrackId ? tracks.filter(t => t.id === selectedTrackId) : tracks);
+
+      targetTracks.forEach(track => {
+        let newRegions = [];
+        track.regions.forEach(reg => {
+          const regStart = reg.startTime;
+          const regEnd = reg.startTime + reg.duration;
+
+          // Caso 1: Fora da área de seleção -> manter inalterada
+          if (regEnd <= tStart || regStart >= tEnd) {
+            newRegions.push(reg);
+          }
+          // Caso 2: Totalmente contido na seleção -> descartar
+          else if (regStart >= tStart && regEnd <= tEnd) {
+            // Descartado
+          }
+          // Caso 3: A seleção divide o clipe no meio
+          else if (regStart < tStart && regEnd > tEnd) {
+            // Clip 1 (antes da seleção)
+            const dur1 = tStart - regStart;
+            newRegions.push({
+              ...reg,
+              id: `region-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              duration: dur1
+            });
+            // Clip 2 (depois da seleção)
+            const dur2 = regEnd - tEnd;
+            const off2 = (reg.offset || 0) + (tEnd - regStart);
+            newRegions.push({
+              ...reg,
+              id: `region-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              startTime: tEnd,
+              duration: dur2,
+              offset: off2
+            });
+          }
+          // Caso 4: A seleção corta o início do clipe
+          else if (regStart >= tStart && regStart < tEnd && regEnd > tEnd) {
+            const cutAmount = tEnd - regStart;
+            newRegions.push({
+              ...reg,
+              id: `region-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              startTime: tEnd,
+              duration: reg.duration - cutAmount,
+              offset: (reg.offset || 0) + cutAmount
+            });
+          }
+          // Caso 5: A seleção corta o fim do clipe
+          else if (regStart < tStart && regEnd > tStart && regEnd <= tEnd) {
+            const newDur = tStart - regStart;
+            newRegions.push({
+              ...reg,
+              id: `region-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              duration: newDur
+            });
+          }
+        });
+        track.regions = newRegions;
+      });
+
+      // Limpar seleção
+      cancelarSelecaoRegiao();
+      renderDAW();
+
+      if (isPlaying) {
+        stopActiveSources();
+        playDAW();
+      }
+    }
+
+    function setZoom(newPxPerSec) {
+      PX_PER_SECOND = Math.max(15, Math.min(180, newPxPerSec));
+      
+      const slider = document.getElementById('sliderZoomTimeline');
+      if (slider) slider.value = PX_PER_SECOND;
+
+      renderRuler();
+      renderDAW();
+      
+      const playhead = document.getElementById('playheadLine');
+      if (playhead) playhead.style.left = `${timelinePosition * PX_PER_SECOND}px`;
+    }
+
+    function atualizarOverlaySelecao() {
+      const overlay = document.getElementById('selectionOverlay');
+      if (!overlay) return;
+
+      if (selectionStart === null || selectionEnd === null || !selectionTrackId) {
+        overlay.style.display = 'none';
+        return;
+      }
+
+      // Encontra a linha da trilha correspondente no DOM atualizado
+      const row = document.querySelector(`.timeline-track-row[data-track-id="${selectionTrackId}"]`);
+      if (!row) {
+        overlay.style.display = 'none';
+        return;
+      }
+
+      const tStart = Math.min(selectionStart, selectionEnd);
+      const tEnd = Math.max(selectionStart, selectionEnd);
+      
+      const leftPx = tStart * PX_PER_SECOND;
+      const widthPx = (tEnd - tStart) * PX_PER_SECOND;
+
+      overlay.style.left = `${leftPx}px`;
+      overlay.style.width = `${widthPx}px`;
+      overlay.style.top = `${row.offsetTop}px`;
+      overlay.style.height = `${row.offsetHeight}px`;
+      overlay.style.display = 'block';
+    }
+
+    // =========================================================================
+    // 🎚️ SISTEMA DE MONITORAMENTO DE ENTRADA & VU METERS
+    // =========================================================================
+
+    async function toggleMonitor(trackId) {
+      const track = tracks.find(t => t.id === trackId);
+      if (!track) return;
+
+      track.monitoring = !track.monitoring;
+      const monitorBtn = document.querySelector(`.monitor-btn[data-track-id="${trackId}"]`);
+      if (monitorBtn) {
+        monitorBtn.classList.toggle('active', track.monitoring);
+      }
+
+      if (track.monitoring) {
+        await startMonitoring(track);
+      } else {
+        stopMonitoring(track.id);
+      }
+    }
+
+    async function startMonitoring(track) {
+      if (activeMonitors.has(track.id)) return;
+
+      try {
+        const constraints = {
+          audio: activeInputDeviceId ? { deviceId: { exact: activeInputDeviceId } } : true
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const sourceNode = audioCtx.createMediaStreamSource(stream);
+
+        const monitorGain = audioCtx.createGain();
+        monitorGain.gain.value = track.volume / 100;
+
+        const monitorPanner = audioCtx.createStereoPanner();
+        monitorPanner.pan.value = track.pan / 100;
+
+        sourceNode.connect(monitorGain);
+        monitorGain.connect(monitorPanner);
+
+        // Analisador para o VU meter em tempo real
+        const monitorAnalyser = audioCtx.createAnalyser();
+        monitorAnalyser.fftSize = 256;
+        monitorPanner.connect(monitorAnalyser);
+
+        // Conecta à cadeia de efeitos da trilha
+        const chain = buildTrackSignalChain(track, monitorAnalyser, audioCtx, eqLow);
+
+        activeMonitors.set(track.id, {
+          stream,
+          sourceNode,
+          monitorGain,
+          monitorPanner,
+          analyser: monitorAnalyser,
+          chain
+        });
+
+        checkStartVULoop();
+      } catch (err) {
+        console.error("Erro ao iniciar monitoramento:", err);
+        track.monitoring = false;
+        const monitorBtn = document.querySelector(`.monitor-btn[data-track-id="${track.id}"]`);
+        if (monitorBtn) monitorBtn.classList.remove('active');
+        alert("Não foi possível acessar o microfone para monitoramento: " + err.message);
+      }
+    }
+
+    function stopMonitoring(trackId) {
+      const monitor = activeMonitors.get(trackId);
+      if (monitor) {
+        try {
+          monitor.stream.getTracks().forEach(t => t.stop());
+        } catch(e){}
+        try { monitor.sourceNode.disconnect(); } catch (e) {}
+        try { monitor.monitorGain.disconnect(); } catch (e) {}
+        try { monitor.monitorPanner.disconnect(); } catch (e) {}
+        activeMonitors.delete(trackId);
+      }
+    }
+
+    function rebuildMonitorSignalChains() {
+      activeMonitors.forEach((monitor, trackId) => {
+        const track = tracks.find(t => t.id === trackId);
+        if (track) {
+          stopMonitoring(trackId);
+          startMonitoring(track);
+        }
+      });
+    }
+
+    function updateAllVUMeters() {
+      tracks.forEach(track => {
+        const bar = document.getElementById(`vu-bar-${track.id}`);
+        if (!bar) return;
+
+        let maxVal = 0;
+
+        // 1. Monitoramento ativo
+        const monitor = activeMonitors.get(track.id);
+        if (monitor && monitor.analyser) {
+          maxVal = getAnalyserVolume(monitor.analyser);
+        }
+
+        // 2. Playback ativo
+        const playbackAnalyser = playbackAnalysers.get(track.id);
+        if (playbackAnalyser) {
+          const playbackVal = getAnalyserVolume(playbackAnalyser);
+          if (playbackVal > maxVal) maxVal = playbackVal;
+        }
+
+        // 3. Gravação ativa
+        if (activeRecordTrackId === track.id && recAnalyser) {
+          const recVal = getAnalyserVolume(recAnalyser);
+          if (recVal > maxVal) maxVal = recVal;
+        }
+
+        // Converter volume para porcentagem (escala de 0 a 140 para máxima sensibilidade)
+        const percentage = Math.min(100, Math.max(0, (maxVal / 140) * 100));
+        bar.style.width = `${percentage}%`;
+      });
+
+      if (isPlaying || activeMonitors.size > 0 || (mediaRecorder && mediaRecorder.state === "recording")) {
+        vuAnimationId = requestAnimationFrame(updateAllVUMeters);
+      } else {
+        // Reset das barras para 0%
+        tracks.forEach(track => {
+          const bar = document.getElementById(`vu-bar-${track.id}`);
+          if (bar) bar.style.width = '0%';
+        });
+        vuAnimationId = null;
+      }
+    }
+
+    function getAnalyserVolume(analyser) {
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      return sum / dataArray.length;
+    }
+
+    function checkStartVULoop() {
+      if (!vuAnimationId) {
+        updateAllVUMeters();
+      }
+    }
+
     // =========================================================================
     // 🎙️ SISTEMA DE GRAVAÇÃO DO MICROFONE (● REC)
     // =========================================================================
@@ -2623,7 +3891,16 @@
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let stream;
+        const monitor = activeMonitors.get(trackId);
+        if (monitor && monitor.stream) {
+          stream = monitor.stream;
+        } else {
+          const constraints = {
+            audio: activeInputDeviceId ? { deviceId: { exact: activeInputDeviceId } } : true
+          };
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
         
         // Garante que o AudioContext está rodando
         if (audioCtx.state === 'suspended') {
@@ -2635,6 +3912,16 @@
         activeRecordTrackId = trackId;
         recordStartTime = timelinePosition;
 
+        // Configura Analisador de Áudio para Waveform em tempo real
+        try {
+          const sourceNode = audioCtx.createMediaStreamSource(stream);
+          recAnalyser = audioCtx.createAnalyser();
+          recAnalyser.fftSize = 2048;
+          sourceNode.connect(recAnalyser);
+        } catch (e) {
+          console.warn("Erro ao configurar analisador para waveform:", e);
+        }
+
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             recordedChunks.push(event.data);
@@ -2642,7 +3929,12 @@
         };
 
         mediaRecorder.onstop = async () => {
-          stream.getTracks().forEach(track => track.stop()); // Desliga microfone
+          // Desliga microfone APENAS se não estiver monitorando
+          const targetTrack = tracks.find(t => t.id === activeRecordTrackId);
+          if (!targetTrack || !targetTrack.monitoring) {
+            stream.getTracks().forEach(track => track.stop()); // Desliga microfone
+          }
+          recAnalyser = null;
           
           const blob = new Blob(recordedChunks, { type: 'audio/webm' });
           const arrayBuffer = await blob.arrayBuffer();
@@ -2653,7 +3945,6 @@
           audioBufferCache.set(bufferKey, recordedBuffer);
 
           // Criar nova região na trilha ativa
-          const targetTrack = tracks.find(t => t.id === activeRecordTrackId);
           if (targetTrack) {
             saveHistory();
             targetTrack.regions.push({
@@ -2677,10 +3968,14 @@
 
         // Iniciar
         mediaRecorder.start();
+        checkStartVULoop();
         
         // Mudar estado dos botões
         const recBtn = document.querySelector(`.rec-btn[data-track-id="${trackId}"]`);
         if (recBtn) recBtn.classList.add('active');
+
+        // Força renderização para instanciar o preview de gravação
+        renderDAW();
 
         // Começar tocar playback em sync para gravação simultânea
         playDAW();
@@ -2694,7 +3989,7 @@
     // ⬇️ RENDERIZAR E EXPORTAR MIX COMPLETA (OFFLINE AUDIO CONTEXT)
     // =========================================================================
 
-    async function exportMixdown() {
+    async function exportMixdown(format = 'wav') {
       // 1. Achar a maior duração de timeline do projeto
       let totalDuration = 0;
       tracks.forEach(track => {
@@ -2712,7 +4007,7 @@
       // Limita em 5 minutos para performance
       totalDuration = Math.min(300, totalDuration);
 
-      alert(`Preparando mixdown de ${Math.round(totalDuration)} segundos. Por favor aguarde...`);
+      alert(`Preparando mixdown (${format.toUpperCase()}) de ${Math.round(totalDuration)} segundos. Por favor aguarde...`);
 
       // 2. Criar contexto offline
       const sampleRate = audioCtx.sampleRate;
@@ -2798,15 +4093,32 @@
       // 5. Renderizar
       try {
         const renderedBuffer = await offlineCtx.startRendering();
-        const wavBlob = bufferToWav(renderedBuffer);
+        let exportBlob;
+        let ext = format.toLowerCase();
+
+        if (ext === 'mp3') {
+          // Carrega lamejs dinamicamente caso nao esteja em memoria
+          if (typeof lamejs === 'undefined') {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js';
+              script.onload = resolve;
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          }
+          exportBlob = bufferToMp3(renderedBuffer);
+        } else {
+          exportBlob = bufferToWav(renderedBuffer);
+        }
 
         // Disparar Download
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(wavBlob);
-        link.download = `mixdown_${Date.now()}.wav`;
+        link.href = URL.createObjectURL(exportBlob);
+        link.download = `mixdown_${Date.now()}.${ext}`;
         link.click();
         
-        alert("Mixagem exportada com sucesso em formato WAV!");
+        alert(`Mixagem exportada com sucesso em formato ${ext.toUpperCase()}!`);
       } catch (err) {
         alert("Falha no processo de mixdown offline: " + err.message);
       }
@@ -2858,6 +4170,88 @@
       document.getElementById('modalImport').style.display = 'flex';
     }
 
+    async function abrirModalConfiguracoes() {
+      document.getElementById('modalSettings').style.display = 'flex';
+      
+      const warning = document.getElementById('sinkIdWarning');
+      if (warning) {
+        warning.style.display = (typeof audioCtx.setSinkId === 'function') ? 'none' : 'block';
+      }
+
+      await carregarDispositivosAudio();
+    }
+
+    async function carregarDispositivosAudio() {
+      try {
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tempStream.getTracks().forEach(track => track.stop());
+        } catch (e) {
+          console.warn("Permissão de áudio negada ou não concedida ainda:", e);
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const micSelect = document.getElementById('selectInputDevice');
+        const speakerSelect = document.getElementById('selectOutputDevice');
+        
+        if (!micSelect || !speakerSelect) return;
+
+        micSelect.innerHTML = "";
+        speakerSelect.innerHTML = "";
+
+        let hasInputs = false;
+        let hasOutputs = false;
+
+        devices.forEach(device => {
+          if (device.kind === 'audioinput') {
+            hasInputs = true;
+            const opt = document.createElement('option');
+            opt.value = device.deviceId;
+            opt.textContent = device.label || `Microfone (${device.deviceId.slice(0, 5)})`;
+            if (device.deviceId === activeInputDeviceId) opt.selected = true;
+            micSelect.appendChild(opt);
+          } else if (device.kind === 'audiooutput') {
+            hasOutputs = true;
+            const opt = document.createElement('option');
+            opt.value = device.deviceId;
+            opt.textContent = device.label || `Saída de Áudio (${device.deviceId.slice(0, 5)})`;
+            if (device.deviceId === activeOutputDeviceId) opt.selected = true;
+            speakerSelect.appendChild(opt);
+          }
+        });
+
+        if (!hasInputs) {
+          micSelect.innerHTML = `<option value="">Nenhum microfone encontrado</option>`;
+        }
+        if (!hasOutputs) {
+          speakerSelect.innerHTML = `<option value="">Saída padrão do sistema</option>`;
+        }
+      } catch (err) {
+        console.error("Erro ao enumerar dispositivos:", err);
+      }
+    }
+
+    async function salvarConfiguracoesDispositivos() {
+      const micSelect = document.getElementById('selectInputDevice');
+      const speakerSelect = document.getElementById('selectOutputDevice');
+
+      if (micSelect) activeInputDeviceId = micSelect.value;
+      if (speakerSelect) activeOutputDeviceId = speakerSelect.value;
+
+      if (activeOutputDeviceId && typeof audioCtx.setSinkId === 'function') {
+        try {
+          await audioCtx.setSinkId(activeOutputDeviceId);
+          console.log(`Saída alterada para: ${activeOutputDeviceId}`);
+        } catch (err) {
+          console.error("Erro ao alterar o dispositivo de saída:", err);
+          alert("Não foi possível trocar a saída de áudio: " + err.message);
+        }
+      }
+
+      fecharModal('modalSettings');
+      alert("Configurações de áudio salvas com sucesso!");
+    }
+
     function carregarSessaoJson() {
       const fileInput = document.getElementById('inputJsonFile');
       if (!fileInput.files.length) return alert("Selecione um arquivo JSON!");
@@ -2894,6 +4288,12 @@
 
     function aplicarSessaoRecuperada(sessao) {
       saveHistory();
+      
+      // Para todos os monitoramentos ativos antes de aplicar a nova sessão
+      activeMonitors.forEach((monitor, id) => {
+        stopMonitoring(id);
+      });
+      
       bpm = sessao.bpm || 120;
       document.getElementById('inputBpm').value = bpm;
       
@@ -2909,6 +4309,7 @@
           pan: t.pan ?? 0,
           muted: !!t.muted,
           soloed: !!t.soloed,
+          monitoring: false,
           effects: t.effects || [],
           regions: (t.regions || []).map(r => ({
             id: `region-${Date.now()}-${Math.floor(Math.random()*1000)}`,
@@ -2954,16 +4355,48 @@
         // --- 1. Criar header lateral ---
         const headerDiv = document.createElement('div');
         headerDiv.className = `track-header ${selectedTrackId === track.id ? 'selected' : ''}`;
+        headerDiv.style.borderLeft = `4px solid ${track.color || '#8b5cf6'}`;
         headerDiv.dataset.trackId = track.id;
         headerDiv.setAttribute('draggable', 'true');
 
         headerDiv.addEventListener('dragstart', (e) => {
-          if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('.track-toggles') || e.target.closest('.track-delete-btn')) {
+          if (
+            e.target.tagName === 'INPUT' || 
+            e.target.tagName === 'BUTTON' || 
+            e.target.closest('.track-toggles') || 
+            e.target.closest('.track-delete-btn') ||
+            e.target.closest('.track-faders') ||
+            e.target.closest('.pan-knob')
+          ) {
             e.preventDefault();
             return;
           }
           e.dataTransfer.setData('text/plain', track.id);
           headerDiv.classList.add('dragging-header');
+        });
+
+        // Desativar draggable dinamicamente ao clicar nos controles para evitar conflito
+        headerDiv.addEventListener('mousedown', (e) => {
+          if (
+            e.target.tagName === 'INPUT' || 
+            e.target.tagName === 'BUTTON' || 
+            e.target.closest('.track-toggles') || 
+            e.target.closest('.track-delete-btn') ||
+            e.target.closest('.track-faders') ||
+            e.target.closest('.pan-knob')
+          ) {
+            headerDiv.setAttribute('draggable', 'false');
+          } else {
+            headerDiv.setAttribute('draggable', 'true');
+          }
+        });
+
+        headerDiv.addEventListener('mouseup', () => {
+          headerDiv.setAttribute('draggable', 'true');
+        });
+
+        headerDiv.addEventListener('mouseleave', () => {
+          headerDiv.setAttribute('draggable', 'true');
         });
 
         headerDiv.addEventListener('dragend', () => {
@@ -3004,6 +4437,7 @@
         
         headerDiv.innerHTML = `
           <div class="track-title-row">
+            <span class="track-color-badge" style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:${track.color || '#8b5cf6'}; margin-right:4px; flex-shrink:0; border: 1px solid rgba(255,255,255,0.2);"></span>
             <input type="text" class="track-name-input" value="${track.name}" data-track-id="${track.id}">
             <button class="track-delete-btn" onclick="deleteTrack('${track.id}')" title="Apagar trilha">&times;</button>
           </div>
@@ -3012,18 +4446,27 @@
               <label>Vol <span>${track.volume}%</span></label>
               <input type="range" class="vol-slider" min="0" max="150" value="${track.volume}" data-track-id="${track.id}">
             </div>
-            <div class="fader-group">
-              <label>Pan <span>${track.pan === 0 ? 'C' : (track.pan < 0 ? 'L'+Math.abs(track.pan) : 'R'+track.pan)}</span></label>
-              <input type="range" class="pan-slider" min="-100" max="100" value="${track.pan}" data-track-id="${track.id}">
+            <div class="fader-group" style="align-items: center; justify-content: center;">
+              <label style="width: 100%; justify-content: space-between;">Pan</label>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <div class="pan-knob" data-track-id="${track.id}" style="width: 24px; height: 24px; border-radius: 50%; background: #11131a; border: 2px solid rgba(255, 255, 255, 0.2); position: relative; cursor: ns-resize; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; transition: border-color 0.2s;">
+                  <div class="pan-knob-indicator" style="width: 2px; height: 8px; background: var(--accent); position: absolute; top: 2px; transform-origin: bottom center; transform: rotate(${(track.pan / 100) * 135}deg); border-radius: 1px;"></div>
+                </div>
+                <span class="pan-value-text" style="font-size: 11px; color: #fff; font-weight: bold; min-width: 30px; display: inline-block; text-align: left;">${track.pan === 0 ? 'C' : (track.pan < 0 ? 'L'+Math.abs(track.pan) : 'R'+track.pan)}</span>
+              </div>
             </div>
           </div>
           <div class="track-toggles">
             <button class="btn-toggle mute-btn ${track.muted ? 'active' : ''}" data-track-id="${track.id}">M</button>
             <button class="btn-toggle solo-btn ${track.soloed ? 'active' : ''}" data-track-id="${track.id}">S</button>
             <button class="btn-toggle rec-btn ${activeRecordTrackId === track.id ? 'active' : ''}" data-track-id="${track.id}">●</button>
+            <button class="btn-toggle monitor-btn ${track.monitoring ? 'active' : ''}" data-track-id="${track.id}" title="Monitorar Entrada">🔊</button>
             <button class="btn-toggle fx-btn ${track.effects && track.effects.some(e => e.active) ? 'active-fx' : ''}" data-track-id="${track.id}" title="Rack de Efeitos">
               FX${track.effects && track.effects.length ? ` (${track.effects.length})` : ''}
             </button>
+          </div>
+          <div class="vu-meter-container" style="width: 100%; height: 5px; background: rgba(0,0,0,0.4); border-radius: 3px; margin-top: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
+            <div class="vu-meter-bar" id="vu-bar-${track.id}" style="width: 0%; height: 100%; background: linear-gradient(to right, #22c55e 60%, #eab308 85%, #ef4444 100%); transition: width 0.05s ease-out;"></div>
           </div>
         `;
 
@@ -3032,7 +4475,6 @@
             // Se o clique foi no botão FX, seleciona a trilha e abre o modal
             if (e.target.closest('.fx-btn')) {
               selecionarTrilha(track.id);
-              abrirModalFx();
             }
             return;
           }
@@ -3096,11 +4538,35 @@
           setTimeout(() => drawClipWaveform(canvas, region), 50);
         });
 
+        // Adiciona bloco de preview visual se a trilha estiver gravando atualmente
+        if (activeRecordTrackId === track.id && mediaRecorder && mediaRecorder.state === "recording") {
+          const recLeftPx = recordStartTime * PX_PER_SECOND;
+          
+          const recPreviewDiv = document.createElement('div');
+          recPreviewDiv.id = 'recording-preview-clip';
+          recPreviewDiv.className = 'audio-clip recording-clip-preview';
+          recPreviewDiv.style.left = `${recLeftPx}px`;
+          recPreviewDiv.style.width = '0px';
+          recPreviewDiv.style.height = '100%';
+          recPreviewDiv.style.position = 'absolute';
+          recPreviewDiv.style.top = '0';
+          
+          recPreviewDiv.innerHTML = `
+            <div class="clip-header" style="color: white; font-weight: bold; animation: pulse 0.8s infinite alternate; display: flex; justify-content: space-between; width: 100%; position: absolute; top: 0; left: 0; right: 0; padding: 4px 8px; z-index: 10; box-sizing: border-box; background: rgba(0,0,0,0.4);">
+              <span>🎙️ Gravando...</span>
+              <span id="recording-preview-duration">0.00s</span>
+            </div>
+            <canvas id="recording-waveform-canvas" style="width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; pointer-events: none; opacity: 0.85;"></canvas>
+          `;
+          trackRow.appendChild(recPreviewDiv);
+        }
+
         tracksList.appendChild(trackRow);
       });
 
       // Recriar listeners da grid
       setupTimelineInteractions();
+      renderTrackInspector();
     }
 
     // Desenhar miniatura da waveform no clipe
@@ -3218,6 +4684,42 @@
 
     // Configurar interatividade de drag, clicks e splits na timeline
     function setupTimelineInteractions() {
+      // Fechamento automático dos dropdowns do menu superior ao clicar nas opções
+      document.querySelectorAll('.menu-dropdown a').forEach(link => {
+        link.addEventListener('click', () => {
+          const dropdown = link.closest('.menu-dropdown');
+          if (dropdown) dropdown.classList.add('closed');
+        });
+      });
+
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('mouseleave', () => {
+          const dropdown = item.querySelector('.menu-dropdown');
+          if (dropdown) dropdown.classList.remove('closed');
+        });
+      });
+
+      // Linha guia que acompanha o mouse sobre a timeline
+      const timeline = document.getElementById('tracksTimeline');
+      const guide = document.getElementById('mouseHoverGuide');
+      const container = document.getElementById('timelineContainer');
+      if (timeline && guide && container) {
+        timeline.addEventListener('mousemove', (e) => {
+          const rect = timeline.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left + container.scrollLeft;
+          guide.style.left = `${mouseX}px`;
+          guide.style.display = 'block';
+        });
+
+        timeline.addEventListener('mouseleave', () => {
+          guide.style.display = 'none';
+        });
+
+        timeline.addEventListener('mouseenter', () => {
+          guide.style.display = 'block';
+        });
+      }
+
       // 1. Sliders de Volume / Pan e Toggles Laterais
       document.querySelectorAll('.vol-slider').forEach(s => {
         s.addEventListener('input', (e) => {
@@ -3232,25 +4734,64 @@
             activeNodes.filter(n => n.trackId === tId).forEach(n => {
               n.trackGain.gain.setValueAtTime(val / 100, audioCtx.currentTime);
             });
+
+            // Atualizar volume do monitoramento ativo
+            const monitor = activeMonitors.get(tId);
+            if (monitor && monitor.monitorGain) {
+              monitor.monitorGain.gain.setValueAtTime(val / 100, audioCtx.currentTime);
+            }
           }
         });
       });
 
-      document.querySelectorAll('.pan-slider').forEach(s => {
-        s.addEventListener('input', (e) => {
-          const tId = e.target.dataset.trackId;
-          const val = e.target.value;
+      document.querySelectorAll('.pan-knob').forEach(knob => {
+        knob.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const tId = knob.dataset.trackId;
           const track = tracks.find(t => t.id === tId);
-          if (track) {
-            track.pan = val;
-            let display = val === 0 ? 'C' : (val < 0 ? 'L'+Math.abs(val) : 'R'+val);
-            e.target.previousElementSibling.querySelector('span').textContent = display;
+          if (!track) return;
+
+          const startY = e.clientY;
+          const startPan = parseInt(track.pan, 10);
+
+          function onMouseMove(moveEvent) {
+            const deltaY = startY - moveEvent.clientY; // arrastar para cima aumenta pan, para baixo diminui
+            let newPan = startPan + deltaY;
+            newPan = Math.max(-100, Math.min(100, newPan));
+
+            track.pan = newPan;
+
+            // Atualiza rotação do indicador visual do knob
+            const indicator = knob.querySelector('.pan-knob-indicator');
+            if (indicator) {
+              indicator.style.transform = `rotate(${(newPan / 100) * 135}deg)`;
+            }
+
+            // Atualiza texto de exibição do pan (ex: L50, C, R50)
+            const labelText = knob.nextElementSibling;
+            if (labelText) {
+              labelText.textContent = newPan === 0 ? 'C' : (newPan < 0 ? 'L' + Math.abs(newPan) : 'R' + newPan);
+            }
 
             // Atualizar pan de fontes ativas
             activeNodes.filter(n => n.trackId === tId).forEach(n => {
-              if (n.trackPanner) n.trackPanner.pan.setValueAtTime(val / 100, audioCtx.currentTime);
+              if (n.trackPanner) n.trackPanner.pan.setValueAtTime(newPan / 100, audioCtx.currentTime);
             });
+
+            // Atualizar pan do monitoramento ativo
+            const monitor = activeMonitors.get(tId);
+            if (monitor && monitor.monitorPanner) {
+              monitor.monitorPanner.pan.setValueAtTime(newPan / 100, audioCtx.currentTime);
+            }
           }
+
+          function onMouseUp() {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          }
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
         });
       });
 
@@ -3290,6 +4831,13 @@
         });
       });
 
+      document.querySelectorAll('.monitor-btn').forEach(b => {
+        b.addEventListener('click', (e) => {
+          const trackId = e.currentTarget.dataset.trackId;
+          toggleMonitor(trackId);
+        });
+      });
+
       document.querySelectorAll('.track-name-input').forEach(i => {
         i.addEventListener('change', (e) => {
           const t = tracks.find(x => x.id === e.target.dataset.trackId);
@@ -3309,21 +4857,16 @@
             const clipStartTimeline = parseFloat(clip.style.left) / PX_PER_SECOND;
             const clickTimelineTime = clipStartTimeline + (clickOffsetPx / PX_PER_SECOND);
             splitClip(trackId, regionId, clickTimelineTime);
+          } else if (regionMode) {
+            // Permite propagação de clique no modo região para que arraste funcione por cima do clipe
+            return;
           } else {
             e.stopPropagation();
-            if (selectedRegionId === regionId) {
-              selectedRegionId = null;
-              selectedRegionTrackId = null;
-            } else {
-              selectedRegionId = regionId;
-              selectedRegionTrackId = trackId;
-            }
-            renderDAW();
           }
         });
 
         clip.addEventListener('mousedown', (e) => {
-          if (cutMode) return; 
+          if (cutMode || regionMode) return; 
           if (e.target.closest('.clip-trim-handle') || e.target.closest('.clip-fade-handle') || e.target.closest('.clip-gain-line')) {
             return;
           }
@@ -3331,6 +4874,12 @@
 
           const trackId = clip.dataset.trackId;
           const regionId = clip.dataset.regionId;
+
+          // Selecionar o clipe imediatamente ao clicar
+          selectedRegionId = regionId;
+          selectedRegionTrackId = trackId;
+          renderDAW();
+
           const track = tracks.find(t => t.id === trackId);
           const region = track?.regions.find(r => r.id === regionId);
           if (!region) return;
@@ -3697,9 +5246,6 @@
     // =========================================================================
 
     // Acionar seletor de arquivos de áudio
-    document.getElementById('btnImportAudio').addEventListener('click', () => {
-      document.getElementById('inputAudioFile').click();
-    });
 
     document.getElementById('inputAudioFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -3852,37 +5398,296 @@
       e.target.value = bpm;
     });
 
+    function atualizarAtivacaoBotoesFerramentas() {
+      const btnPointer = document.getElementById('btnPointerMode');
+      const btnReg = document.getElementById('btnRegionMode');
+      const btnCut = document.getElementById('btnCutMode');
+
+      if (btnPointer) btnPointer.classList.toggle('active', !regionMode && !cutMode);
+      if (btnReg) btnReg.classList.toggle('active', regionMode);
+      if (btnCut) btnCut.classList.toggle('active', cutMode);
+    }
+
+    // Ativar Ferramenta Seleção / Ponteiro
+    document.getElementById('btnPointerMode').addEventListener('click', () => {
+      regionMode = false;
+      cutMode = false;
+      document.body.classList.remove('cut-mode-active');
+      cancelarSelecaoRegiao();
+      atualizarAtivacaoBotoesFerramentas();
+    });
+
+    // Alternar Ferramenta Região
+    document.getElementById('btnRegionMode').addEventListener('click', (e) => {
+      regionMode = !regionMode;
+      if (regionMode) {
+        cutMode = false;
+        document.body.classList.remove('cut-mode-active');
+      }
+      if (!regionMode) {
+        cancelarSelecaoRegiao();
+      }
+      atualizarAtivacaoBotoesFerramentas();
+    });
+
     // Alternar modo de corte
     document.getElementById('btnCutMode').addEventListener('click', (e) => {
       cutMode = !cutMode;
+      if (cutMode) {
+        regionMode = false;
+        cancelarSelecaoRegiao();
+      }
       document.body.classList.toggle('cut-mode-active', cutMode);
-      e.target.textContent = cutMode ? "✂️ Modo Corte: ON" : "✂️ Modo Corte: OFF";
-      e.target.classList.toggle('active', cutMode);
+      atualizarAtivacaoBotoesFerramentas();
+    });
+
+    // Zoom Buttons
+    document.getElementById('btnZoomIn').addEventListener('click', () => {
+      setZoom(PX_PER_SECOND + 15);
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', () => {
+      setZoom(PX_PER_SECOND - 15);
+    });
+
+    // Zoom Slider
+    document.getElementById('sliderZoomTimeline').addEventListener('input', (e) => {
+      setZoom(parseInt(e.target.value));
+    });
+
+    // Ação do botão flutuante de deletar seleção
+    const deleteBtn = document.getElementById('btnDeleteRegionSelect');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        apagarTrechoSelecionado();
+      });
+    }
+
+    // Eventos de Seleção de Região (timeline drag selection)
+    const tTimeline = document.getElementById('tracksTimeline');
+    if (tTimeline) {
+      tTimeline.addEventListener('mousedown', (e) => {
+        if (!regionMode) return;
+        if (e.target.id === 'btnDeleteRegionSelect') return;
+
+        const trackRow = e.target.closest('.timeline-track-row');
+        if (!trackRow) return;
+
+        e.stopPropagation();
+        e.preventDefault();
+
+        selectionTrackRowElement = trackRow;
+        selectionTrackId = trackRow.dataset.trackId;
+
+        const rect = tTimeline.getBoundingClientRect();
+        const clickX = e.clientX - rect.left + tTimeline.scrollLeft;
+        
+        selectionStart = clickX / PX_PER_SECOND;
+        selectionEnd = selectionStart;
+        isSelectingRegion = true;
+        regionSelectionActive = true;
+
+        atualizarOverlaySelecao();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!regionMode || !isSelectingRegion) return;
+
+        const rect = tTimeline.getBoundingClientRect();
+        const currentX = Math.max(0, e.clientX - rect.left + tTimeline.scrollLeft);
+        
+        selectionEnd = currentX / PX_PER_SECOND;
+        atualizarOverlaySelecao();
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (!regionMode || !isSelectingRegion) return;
+        isSelectingRegion = false;
+        
+        if (Math.abs(selectionStart - selectionEnd) < 0.05) {
+          // Clique simples! Seleciona 1 Beat a partir do local clicado
+          const beatDuration = 60 / bpm;
+          selectionEnd = selectionStart + beatDuration;
+          atualizarOverlaySelecao();
+        }
+      });
+    }
+
+    // Funções para adicionar nova trilha através do modal
+    function abrirModalNovaTrilha() {
+      document.getElementById('newTrackName').value = `Trilha ${tracks.length + 1}`;
+      document.getElementById('newTrackColor').value = '#8b5cf6';
+      document.querySelectorAll('.color-preset').forEach(p => p.style.borderColor = 'transparent');
+      const defaultPreset = Array.from(document.querySelectorAll('.color-preset')).find(p => p.dataset.color === '#8b5cf6');
+      if (defaultPreset) defaultPreset.style.borderColor = '#fff';
+      document.getElementById('modalAddTrack').style.display = 'flex';
+      setTimeout(() => {
+        document.getElementById('newTrackName').focus();
+        document.getElementById('newTrackName').select();
+      }, 50);
+    }
+
+    document.querySelectorAll('.color-preset').forEach(preset => {
+      preset.addEventListener('click', () => {
+        const color = preset.dataset.color;
+        document.getElementById('newTrackColor').value = color;
+        document.querySelectorAll('.color-preset').forEach(p => p.style.borderColor = 'transparent');
+        preset.style.borderColor = '#fff';
+      });
+    });
+
+    document.getElementById('newTrackColor').addEventListener('input', () => {
+      document.querySelectorAll('.color-preset').forEach(p => p.style.borderColor = 'transparent');
+    });
+
+    document.getElementById('btnConfirmAddTrack').addEventListener('click', () => {
+      const name = document.getElementById('newTrackName').value.trim() || `Trilha ${tracks.length + 1}`;
+      const color = document.getElementById('newTrackColor').value;
+      saveHistory();
+      addTrack(name, 'audio', color);
+      fecharModal('modalAddTrack');
+    });
+
+    document.getElementById('newTrackName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btnConfirmAddTrack').click();
+      }
     });
 
     document.getElementById('btnUndo').addEventListener('click', undoAction);
-    document.getElementById('btnAddTrack').addEventListener('click', () => addTrack());
-    document.getElementById('btnSaveConfig').addEventListener('click', salvarConfiguracoes);
-    document.getElementById('btnLoadConfig').addEventListener('click', carregarConfiguracoesNavegador);
-    document.getElementById('btnExportMix').addEventListener('click', exportMixdown);
 
     // =========================================================================
     // 🚀 STARTUP & INITIALIZATION
     // =========================================================================
 
     // Adiciona uma trilha vazia por padrão
-    addTrack("Voz");
-    addTrack("Violão");
+    addTrack("Voz", "audio", "#ff5555");
+    addTrack("Violão", "audio", "#8b5cf6");
     // Desenha régua e inicializa
     renderRuler();
     renderDAW();
 
-    // Deletar clipe selecionado com tecla DEL ou Backspace
+    // Atalhos do teclado (Deletar clipe, Play/Pause com Espaço, Ctrl+Z para desfazer, Setas para mover cursor)
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
         return;
       }
+
+      // Ctrl+Z para Desfazer
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undoAction();
+        return;
+      }
+
+      // Ctrl+C para Copiar Região
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        copiarRegiaoSelecionada();
+        return;
+      }
+
+      // Ctrl+V para Colar Região
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        colarRegiao();
+        return;
+      }
+
+      // Ctrl+X para Recortar Região
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        e.preventDefault();
+        recortarRegiaoSelecionada();
+        return;
+      }
+
+      // Espaço para Play/Pause
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        playDAW();
+        return;
+      }
+
+      // Tecla T para Adicionar Nova Trilha
+      if (e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        abrirModalNovaTrilha();
+        return;
+      }
+
+      // Tecla V ou 1 para ativar ferramenta Seleção / Ponteiro
+      if (e.key.toLowerCase() === 'v' || e.key === '1') {
+        e.preventDefault();
+        const btnPointer = document.getElementById('btnPointerMode');
+        if (btnPointer) btnPointer.click();
+        return;
+      }
+
+      // Tecla R para alternar ferramenta Região
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        const btnReg = document.getElementById('btnRegionMode');
+        if (btnReg) btnReg.click();
+        return;
+      }
+
+      // Tecla C ou 3 para alternar ferramenta Corte
+      if (e.key.toLowerCase() === 'c' || e.key === '3') {
+        e.preventDefault();
+        const btnCut = document.getElementById('btnCutMode');
+        if (btnCut) btnCut.click();
+        return;
+      }
+
+      // Tecla * para Gravar na Trilha Selecionada
+      if (e.key === '*') {
+        e.preventDefault();
+        if (activeRecordTrackId) {
+          toggleRecord(activeRecordTrackId);
+        } else if (selectedTrackId) {
+          toggleRecord(selectedTrackId);
+        } else if (tracks.length > 0) {
+          toggleRecord(tracks[0].id);
+        }
+        return;
+      }
+
+      // Setas para esquerda e direita para mover o cursor vermelho
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        let currentPos = timelinePosition;
+        if (isPlaying) {
+          const delta = audioCtx.currentTime - playbackStartTime;
+          currentPos = timelinePosition + delta;
+        }
+        
+        if (e.key === 'ArrowLeft') {
+          timelinePosition = Math.max(0, currentPos - step);
+        } else {
+          timelinePosition = currentPos + step;
+        }
+
+        document.getElementById('playheadLine').style.left = `${timelinePosition * PX_PER_SECOND}px`;
+        document.getElementById('displayTime').textContent = formatDigitalTime(timelinePosition);
+
+        if (isPlaying) {
+          stopActiveSources();
+          playbackStartTime = audioCtx.currentTime;
+          isPlaying = false;
+          playDAW();
+        }
+        return;
+      }
+
+      // Deletar clipe selecionado com tecla DEL ou Backspace, ou apagar seleção de região
       if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Del') {
+        if (regionMode && regionSelectionActive && selectionStart !== null && selectionEnd !== null) {
+          e.preventDefault();
+          apagarTrechoSelecionado();
+          return;
+        }
         if (selectedRegionId && selectedRegionTrackId) {
           const track = tracks.find(t => t.id === selectedRegionTrackId);
           if (track) {
@@ -3898,7 +5703,32 @@
           }
         }
       }
+
+      // Tecla F5 para alternar visualização do menu de efeitos lateral e rodapé
+      if (e.key === 'F5') {
+        e.preventDefault();
+        toggleEffectsPanel();
+        return;
+      }
     });
+
+    function toggleEffectsPanel() {
+      const panel = document.querySelector('.master-effects-panel');
+      const footer = document.querySelector('footer');
+      const tab = document.getElementById('btnShowEffectsTab');
+      if (!panel) return;
+      
+      const isHidden = window.getComputedStyle(panel).display === 'none';
+      if (isHidden) {
+        panel.style.display = 'flex';
+        if (footer) footer.style.display = 'flex';
+        if (tab) tab.style.display = 'none';
+      } else {
+        panel.style.display = 'none';
+        if (footer) footer.style.display = 'none';
+        if (tab) tab.style.display = 'block';
+      }
+    }
   </script>
 
 </body>
