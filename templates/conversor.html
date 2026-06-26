@@ -1,0 +1,529 @@
+﻿<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conversor de Video para MP3 - CifrasFlix Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090d;
+      --panel: rgba(20, 24, 33, .92);
+      --panel-2: rgba(33, 38, 49, .92);
+      --line: rgba(148, 163, 184, .16);
+      --text: #f5f7fb;
+      --muted: rgba(226, 232, 240, .72);
+      --accent: #39d7e6;
+      --accent-2: #7c3aed;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --shadow: 0 24px 90px rgba(0, 0, 0, .45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(57, 215, 230, .14), transparent 32%),
+        radial-gradient(circle at 85% 10%, rgba(124, 58, 237, .18), transparent 26%),
+        linear-gradient(180deg, #05070a 0%, #0b0f15 100%);
+    }
+    a { color: inherit; text-decoration: none; }
+
+    .shell { min-height: 100vh; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+      background: rgba(8, 10, 14, .72);
+    }
+    .topbar .brand {
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 700; font-size: 18px;
+    }
+    .topbar .brand .mark {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(57, 215, 230, .25), rgba(124, 58, 237, .25));
+      border: 1px solid var(--line);
+    }
+    .topbar nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .topbar nav a {
+      padding: 8px 14px; border-radius: 10px;
+      color: var(--muted); font-weight: 500; font-size: 14px;
+      transition: .2s;
+    }
+    .topbar nav a:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
+    .topbar nav a.active { color: var(--text); background: rgba(57, 215, 230, .15); }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 22px 60px; }
+
+    .hero {
+      display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px;
+      align-items: center; margin-bottom: 26px;
+    }
+    @media (max-width: 800px) { .hero { grid-template-columns: 1fr; } }
+
+    .heroCopy p.eyebrow {
+      text-transform: uppercase; letter-spacing: .14em; font-size: 12px;
+      color: var(--accent); margin: 0 0 8px; font-weight: 600;
+    }
+    .heroCopy h1 {
+      font-size: clamp(28px, 4vw, 42px); margin: 0 0 12px; line-height: 1.1;
+      background: linear-gradient(135deg, #ffffff 0%, #39d7e6 60%, #7c3aed 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .heroCopy p.lead { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0; }
+    .heroStats { display: grid; gap: 12px; }
+    .statChip {
+      border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px;
+      background: var(--panel); display: flex; align-items: center; gap: 12px;
+    }
+    .statChip .icon {
+      width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(57, 215, 230, .14); color: var(--accent); font-size: 18px;
+    }
+    .statChip strong { display: block; font-size: 14px; }
+    .statChip span { font-size: 12px; color: var(--muted); }
+
+    .grid {
+      display: grid; grid-template-columns: 1.1fr .9fr; gap: 22px;
+    }
+    @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 22px; padding: 22px; box-shadow: var(--shadow);
+    }
+    .panelTitle {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      margin-bottom: 18px;
+    }
+    .panelTitle h2 { margin: 0; font-size: 18px; }
+    .panelTitle p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .field { display: grid; gap: 8px; margin-bottom: 18px; }
+    .field label {
+      font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); font-weight: 600;
+    }
+
+    .dropzone {
+      position: relative;
+      border: 2px dashed rgba(148, 163, 184, .32);
+      border-radius: 18px;
+      padding: 26px;
+      text-align: center;
+      background: rgba(255, 255, 255, .02);
+      transition: .2s;
+      cursor: pointer;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(57, 215, 230, .06);
+    }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .dropzone .dzIcon {
+      font-size: 38px; margin-bottom: 6px;
+    }
+    .dropzone strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .dropzone span { color: var(--muted); font-size: 13px; }
+
+    .choices { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 520px) { .choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .choice {
+      border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 10px; text-align: center;
+      background: rgba(255, 255, 255, .02); cursor: pointer;
+      transition: .15s;
+    }
+    .choice input { display: none; }
+    .choice strong { display: block; font-size: 16px; }
+    .choice span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .choice.is-active {
+      border-color: var(--accent);
+      background: rgba(57, 215, 230, .12);
+      box-shadow: 0 0 0 1px var(--accent) inset;
+    }
+
+    .submitBtn {
+      width: 100%; padding: 14px;
+      border-radius: 14px; border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-weight: 700; font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 12px 36px rgba(57, 215, 230, .25);
+      transition: transform .15s ease;
+    }
+    .submitBtn:hover { transform: translateY(-1px); }
+    .submitBtn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .alert {
+      border-radius: 14px; padding: 14px 16px;
+      border: 1px solid rgba(239, 68, 68, .3);
+      background: rgba(239, 68, 68, .1); color: #fecaca;
+      font-size: 14px; margin-bottom: 16px;
+    }
+
+    .statusCard {
+      border: 1px solid var(--line); border-radius: 18px;
+      padding: 18px; background: rgba(255, 255, 255, .02);
+    }
+    .statusRow {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 10px;
+    }
+    .statusRow strong { font-size: 15px; }
+    .statusRow span { color: var(--muted); font-size: 13px; }
+
+    .progress {
+      position: relative; height: 10px; border-radius: 999px;
+      background: rgba(148, 163, 184, .14);
+      overflow: hidden; margin-bottom: 10px;
+    }
+    .progressBar {
+      position: absolute; top: 0; left: 0; bottom: 0;
+      width: 0%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width .3s ease;
+    }
+
+    .fileMeta {
+      display: grid; gap: 8px; padding: 14px;
+      background: var(--panel-2); border-radius: 14px;
+      border: 1px solid var(--line); margin-bottom: 14px;
+    }
+    .fileMeta div { display: flex; justify-content: space-between; font-size: 13px; }
+    .fileMeta span { color: var(--muted); }
+
+    .downloadBtn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px;
+      border-radius: 14px; border: none;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff; font-weight: 700; font-size: 15px;
+      cursor: pointer; text-decoration: none;
+      box-shadow: 0 12px 36px rgba(34, 197, 94, .25);
+    }
+    .downloadBtn:hover { transform: translateY(-1px); }
+    .downloadBtn.hidden { display: none; }
+
+    .helpList { padding-left: 18px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .helpList li::marker { color: var(--accent); }
+
+    .badgeOk {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(34, 197, 94, .15); color: #86efac; font-size: 12px; font-weight: 600;
+    }
+    .badgeFail {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(239, 68, 68, .15); color: #fecaca; font-size: 12px; font-weight: 600;
+    }
+    .badgeRun {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(57, 215, 230, .15); color: var(--accent); font-size: 12px; font-weight: 600;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinnerMini {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid currentColor; border-top-color: transparent;
+      animation: spin .8s linear infinite;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark">&#127926;</div>
+        <div>CifrasFlix Studio</div>
+      </div>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/flix-play">Flix Play</a>
+        <a href="/daw">DAW</a>
+        <a href="/mp3detect">Music Genius</a>
+        <a href="/separar-audio">Separador</a>
+        <a href="/masterizacao">Masterizacao</a>
+        <a href="/treinar/">Treinar</a>
+        <a href="/conversor" class="active">Conversor</a>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <div class="heroCopy">
+          <p class="eyebrow">Conversor de video</p>
+          <h1>Transforme seus videos em MP3 em segundos</h1>
+          <p class="lead">Selecione um arquivo MP4 (ou outro formato de video), escolha a qualidade do audio e deixe o ffmpeg fazer o trabalho pesado. Acompanhe o progresso em tempo real e baixe o MP3 gerado direto pelo navegador.</p>
+        </div>
+        <div class="heroStats">
+          <div class="statChip"><div class="icon">&#127909;</div><div><strong>Qualidades 128 / 192 / 256 / 320 kbps</strong><span>MP3 estereo 44.1 kHz</span></div></div>
+          <div class="statChip"><div class="icon">&#9889;</div><div><strong>Processamento com ffmpeg</strong><span>Conversao direta, sem uploads externos</span></div></div>
+          <div class="statChip"><div class="icon">&#128190;</div><div><strong>Download imediato</strong><span>O MP3 fica salvo em /static/conversor/jobs</span></div></div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panelTitle">
+            <div>
+              <h2>Configurar conversao</h2>
+              <p>Selecione o video e a qualidade do audio</p>
+            </div>
+          </div>
+
+          {% if erro %}
+            <div class="alert">{{ erro }}</div>
+          {% endif %}
+
+          <form id="conversorForm" method="post" enctype="multipart/form-data">
+            <div class="field">
+              <label>Arquivo de video</label>
+              <label class="dropzone" id="dropzone">
+                <div class="dzIcon">&#128190;</div>
+                <strong id="dzTitle">Arraste o video aqui ou clique para selecionar</strong>
+                <span id="dzHint">Formatos suportados: MP4, MOV, MKV, AVI, WEBM, FLV, MPG, MPEG, WMV, 3GP</span>
+                <input type="file" id="arquivo_video" name="arquivo_video" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.flv,.mpg,.mpeg,.wmv,.3gp" required>
+              </label>
+            </div>
+
+            <div class="field">
+              <label>Qualidade do MP3 (kbps)</label>
+              <div class="choices" id="bitrateChoices">
+                <label class="choice {% if bitrate == '128' %}is-active{% endif %}" data-value="128">
+                  <input type="radio" name="bitrate" value="128" {% if bitrate == '128' %}checked{% endif %}>
+                  <strong>128</strong>
+                  <span>Leve</span>
+                </label>
+                <label class="choice {% if bitrate == '192' %}is-active{% endif %}" data-value="192">
+                  <input type="radio" name="bitrate" value="192" {% if bitrate == '192' %}checked{% endif %}>
+                  <strong>192</strong>
+                  <span>Balanceado</span>
+                </label>
+                <label class="choice {% if bitrate == '256' %}is-active{% endif %}" data-value="256">
+                  <input type="radio" name="bitrate" value="256" {% if bitrate == '256' %}checked{% endif %}>
+                  <strong>256</strong>
+                  <span>Alta</span>
+                </label>
+                <label class="choice {% if bitrate == '320' %}is-active{% endif %}" data-value="320">
+                  <input type="radio" name="bitrate" value="320" {% if bitrate == '320' %}checked{% endif %}>
+                  <strong>320</strong>
+                  <span>Maxima</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="submitBtn" id="submitBtn">&#127911; Converter para MP3</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panelTitle">
+            <div>
+              <h2>Progresso</h2>
+              <p>Acompanhe em tempo real e baixe o resultado</p>
+            </div>
+            <div id="statusBadge">
+              {% if processando %}<span class="badgeRun"><span class="spinnerMini"></span> Processando</span>
+              {% elif erro %}<span class="badgeFail">Erro</span>
+              {% elif job_id %}<span class="badgeOk">Pronto</span>
+              {% else %}<span class="badgeOk">Aguardando</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if job_id %}
+            <div class="fileMeta" id="fileMeta">
+              <div><span>Arquivo</span><strong id="metaArquivo">{{ arquivo_nome }}</strong></div>
+              <div><span>Tamanho</span><strong id="metaTamanho">{{ tamanho_original or '--' }}</strong></div>
+              <div><span>Duracao</span><strong id="metaDuracao">{{ duracao_original }}</strong></div>
+              <div><span>Bitrate</span><strong id="metaBitrate">{{ bitrate }} kbps</strong></div>
+            </div>
+
+            <div class="statusCard" id="statusCard">
+              <div class="statusRow">
+                <strong id="statusTitulo">Convertendo...</strong>
+                <span id="statusPercent">{{ progresso|round(0, 'floor') }}%</span>
+              </div>
+              <div class="progress"><div class="progressBar" id="progressBar" style="width: {{ progresso }}%"></div></div>
+              <div class="statusRow">
+                <span id="statusMensagem">{{ mensagem_status }}</span>
+                <span id="statusJob" style="opacity:.6">job: {{ job_id[:8] }}</span>
+              </div>
+            </div>
+
+            <a id="downloadBtn" class="downloadBtn hidden" href="#" download>&#11015; Baixar MP3</a>
+          {% else %}
+            <div class="fileMeta">
+              <div><span>Status</span><strong>Pronto para receber um arquivo</strong></div>
+              <div><span>Motor</span><strong>ffmpeg (libmp3lame)</strong></div>
+              <div><span>Saida</span><strong>/static/conversor/jobs/&lt;id&gt;/output</strong></div>
+              <div><span>Limite</span><strong>Sugestao: ate 500 MB por arquivo</strong></div>
+            </div>
+            <p class="helpList">
+              <li>Use o formulario ao lado para enviar um video.</li>
+              <li>Escolha 192 kbps para um arquivo compacto ou 320 kbps para maxima qualidade.</li>
+              <li>Quando a conversao terminar, clique em <strong>Baixar MP3</strong>.</li>
+              <li>Os arquivos ficam disponiveis enquanto o servidor estiver rodando.</li>
+            </p>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('arquivo_video');
+      const dzTitle = document.getElementById('dzTitle');
+      const dzHint = document.getElementById('dzHint');
+      const choices = document.querySelectorAll('#bitrateChoices .choice');
+      const radios = document.querySelectorAll('#bitrateChoices input[type=radio]');
+      const submitBtn = document.getElementById('submitBtn');
+      const form = document.getElementById('conversorForm');
+
+      function atualizarDropzone() {
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
+        const arquivo = fileInput.files[0];
+        const tamanhoMB = (arquivo.size / (1024 * 1024)).toFixed(1);
+        dzTitle.textContent = arquivo.name;
+        dzHint.textContent = `${tamanhoMB} MB - clique para trocar o arquivo`;
+      }
+
+      if (fileInput) {
+        fileInput.addEventListener('change', atualizarDropzone);
+      }
+
+      if (dropzone) {
+        ['dragenter', 'dragover'].forEach((evt) => {
+          dropzone.addEventListener(evt, (e) => {
+            e.preventDefault(); e.stopPropagation();
+            dropzone.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach((evt) => {
+          dropzone.addEventListener(evt, (e) => {
+            e.preventDefault(); e.stopPropagation();
+            dropzone.classList.remove('dragover');
+          });
+        });
+        dropzone.addEventListener('drop', (e) => {
+          if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files[0]) return;
+          fileInput.files = e.dataTransfer.files;
+          atualizarDropzone();
+        });
+      }
+
+      function syncChoices() {
+        choices.forEach((el) => {
+          const input = el.querySelector('input[type=radio]');
+          if (input && input.checked) el.classList.add('is-active');
+          else el.classList.remove('is-active');
+        });
+      }
+
+      choices.forEach((el) => {
+        el.addEventListener('click', () => {
+          const input = el.querySelector('input[type=radio]');
+          if (input) {
+            input.checked = true;
+            syncChoices();
+          }
+        });
+      });
+      radios.forEach((r) => r.addEventListener('change', syncChoices));
+      syncChoices();
+
+      if (form && submitBtn) {
+        form.addEventListener('submit', () => {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinnerMini"></span> Enviando...';
+        });
+      }
+
+      const jobIdEl = document.getElementById('statusJob');
+      const jobId = jobIdEl ? (jobIdEl.textContent || '').replace('job: ', '').trim() : '';
+
+      if (jobId) {
+        const progressBar = document.getElementById('progressBar');
+        const statusPercent = document.getElementById('statusPercent');
+        const statusMensagem = document.getElementById('statusMensagem');
+        const statusTitulo = document.getElementById('statusTitulo');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusBadge = document.getElementById('statusBadge');
+
+        const atualizar = (dados) => {
+          if (!dados) return;
+          const progresso = Math.max(0, Math.min(100, Number(dados.progresso || 0)));
+          if (progressBar) progressBar.style.width = `${progresso}%`;
+          if (statusPercent) statusPercent.textContent = `${Math.round(progresso)}%`;
+          if (statusMensagem && dados.mensagem) statusMensagem.textContent = dados.mensagem;
+
+          if (dados.status === 'completed') {
+            if (statusTitulo) statusTitulo.textContent = 'Conversao concluida';
+            if (statusBadge) statusBadge.innerHTML = '<span class="badgeOk">Concluido</span>';
+            if (downloadBtn && dados.download_url) {
+              downloadBtn.href = dados.download_url;
+              downloadBtn.classList.remove('hidden');
+            }
+          } else if (dados.status === 'failed') {
+            if (statusTitulo) statusTitulo.textContent = 'Falha na conversao';
+            if (statusBadge) statusBadge.innerHTML = '<span class="badgeFail">Falhou</span>';
+            if (statusMensagem && dados.erro) statusMensagem.textContent = dados.erro;
+          } else {
+            if (statusTitulo) statusTitulo.textContent = 'Convertendo...';
+          }
+        };
+
+        const consultar = async () => {
+          try {
+            const resposta = await fetch(`/conversor/status/${encodeURIComponent(jobId)}`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              cache: 'no-store'
+            });
+            if (!resposta.ok) return;
+            const dados = await resposta.json();
+            if (!dados || !dados.ok) return;
+            atualizar(dados);
+            if (dados.status === 'completed' || dados.status === 'failed') {
+              if (dados.status === 'completed' && dados.download_url) {
+                if (downloadBtn) {
+                  downloadBtn.href = dados.download_url;
+                  downloadBtn.classList.remove('hidden');
+                }
+              }
+              return;
+            }
+          } catch (_err) {
+            // silencioso
+          }
+          setTimeout(consultar, 1500);
+        };
+
+        consultar();
+      }
+    })();
+  </script>
+</body>
+</html>

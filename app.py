@@ -1,4 +1,4 @@
-from flask import Flask
+﻿from flask import Flask
 from pathlib import Path
 import os
 
@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__)
 app.secret_key = "ttx15_secret"
 
-# Configurações de pastas
+# ConfiguraÃ§Ãµes de pastas
 UPLOAD_FOLDER = "static/capas"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -23,6 +23,7 @@ from modules.routes_player import player_bp
 from modules.routes_separador import separador_bp
 from modules.routes_treinar import treinar_bp
 from modules.routes_daw import daw_bp
+from modules.routes_conversor import conversor_bp
 
 app.register_blueprint(main_bp)
 app.register_blueprint(admin_bp)
@@ -36,6 +37,7 @@ app.register_blueprint(player_bp)
 app.register_blueprint(separador_bp)
 app.register_blueprint(treinar_bp)
 app.register_blueprint(daw_bp)
+app.register_blueprint(conversor_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)
