@@ -144,6 +144,9 @@ def init_db():
         uid TEXT UNIQUE,
         artista_id INTEGER,
         conteudo TEXT,
+        tom TEXT,
+        afinacao TEXT,
+        capotraste TEXT,
         views INTEGER DEFAULT 0,
         FOREIGN KEY (artista_id) REFERENCES artistas(id)
     )
@@ -152,6 +155,23 @@ def init_db():
     CREATE TABLE IF NOT EXISTS favoritos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         musica_id INTEGER UNIQUE
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS playlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        publica INTEGER DEFAULT 0,
+        likes INTEGER DEFAULT 0
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS playlist_musicas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        playlist_id INTEGER,
+        musica_id INTEGER,
+        FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+        FOREIGN KEY (musica_id) REFERENCES musicas(id) ON DELETE CASCADE
     )
     """)
     conn.commit()
@@ -303,15 +323,44 @@ def importar_txt():
 NOTAS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 
 def transpor_acordes(texto, semitons):
-    def trocar(match):
-        acorde = match.group(0)
-        if acorde in NOTAS:
-            idx = NOTAS.index(acorde)
-            novo = NOTAS[(idx + semitons) % 12]
-            return novo
-        return acorde
-    padrao = r'\b(' + '|'.join(NOTAS) + r')\b'
-    return re.sub(padrao, trocar, texto)
+    if semitons == 0:
+        return texto
+
+    MAP_TO_INDEX = {
+        "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11
+    }
+
+    def transpor_nota(nota):
+        if not nota:
+            return ""
+        if nota not in MAP_TO_INDEX:
+            return nota
+        idx = MAP_TO_INDEX[nota]
+        new_idx = (idx + semitons) % 12
+        if "b" in nota or new_idx in [1, 3, 8, 10]:  # Db, Eb, Ab, Bb
+            return ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"][new_idx]
+        return ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][new_idx]
+
+    def transpor_chord_match(match):
+        chord = match.group(0)
+        m = re.match(r"^([A-G][#b]?)([^/]*)(?:\/([A-G][#b]?))?$", chord)
+        if not m:
+            return chord
+        root = m.group(1)
+        mod = m.group(2) or ""
+        slash = m.group(3)
+
+        new_root = transpor_nota(root)
+        new_slash = transpor_nota(slash) if slash else ""
+
+        if new_slash:
+            return f"{new_root}{mod}/{new_slash}"
+        return f"{new_root}{mod}"
+
+    # Regex para capturar acordes completos (ex: C#m7/G#, Ebmaj9)
+    chord_pattern = r'\b[A-G][#b]?(?:maj9|maj7|m7b5|m7|m|7sus4|7sus2|7#11|7b13|7#9|7b9|7#5|7b5|7|sus4|sus2|dim|aug|add9|m6|6|9|11|13|5|M|M7)?(?:\/[A-G][#b]?)?\b'
+
+    return re.sub(chord_pattern, transpor_chord_match, texto)
 
 # ==========================================
 # HEADER / CSS estilo Netflix

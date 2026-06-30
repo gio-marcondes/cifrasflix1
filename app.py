@@ -1,4 +1,4 @@
-﻿from flask import Flask
+from flask import Flask
 from pathlib import Path
 import os
 
@@ -24,6 +24,8 @@ from modules.routes_separador import separador_bp
 from modules.routes_treinar import treinar_bp
 from modules.routes_daw import daw_bp
 from modules.routes_conversor import conversor_bp
+from modules.routes_afinador import afinador_bp
+from modules.routes_jamstudio import jamstudio_bp
 
 app.register_blueprint(main_bp)
 app.register_blueprint(admin_bp)
@@ -38,6 +40,8 @@ app.register_blueprint(separador_bp)
 app.register_blueprint(treinar_bp)
 app.register_blueprint(daw_bp)
 app.register_blueprint(conversor_bp)
+app.register_blueprint(afinador_bp)
+app.register_blueprint(jamstudio_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)

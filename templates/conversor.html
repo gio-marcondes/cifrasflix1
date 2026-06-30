@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
@@ -247,6 +247,71 @@
       animation: spin .8s linear infinite;
       display: inline-block;
     }
+    .tabsNav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+    }
+    .tabBtn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .02);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: .2s;
+    }
+    .tabBtn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, .04);
+    }
+    .tabBtn.is-active {
+      color: var(--text);
+      background: rgba(57, 215, 230, 0.15);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent) inset;
+    }
+    .tabContent {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+    .tabContent.is-active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fileList {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .fileListItem {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+    }
+    .fileListItem .removeBtn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -271,69 +336,392 @@
     <main class="wrap">
       <section class="hero">
         <div class="heroCopy">
-          <p class="eyebrow">Conversor de video</p>
-          <h1>Transforme seus videos em MP3 em segundos</h1>
-          <p class="lead">Selecione um arquivo MP4 (ou outro formato de video), escolha a qualidade do audio e deixe o ffmpeg fazer o trabalho pesado. Acompanhe o progresso em tempo real e baixe o MP3 gerado direto pelo navegador.</p>
+          <p class="eyebrow">Ferramentas de Áudio & Vídeo</p>
+          <h1>Estúdio de Conversão e Edição de Áudio</h1>
+          <p class="lead">Converta vídeos para áudio (com opção de extração de voz/instrumental por IA), converta entre formatos de áudio, corte arquivos com precisão, mescle múltiplos arquivos ou troque a trilha sonora de um vídeo.</p>
         </div>
         <div class="heroStats">
-          <div class="statChip"><div class="icon">&#127909;</div><div><strong>Qualidades 128 / 192 / 256 / 320 kbps</strong><span>MP3 estereo 44.1 kHz</span></div></div>
-          <div class="statChip"><div class="icon">&#9889;</div><div><strong>Processamento com ffmpeg</strong><span>Conversao direta, sem uploads externos</span></div></div>
-          <div class="statChip"><div class="icon">&#128190;</div><div><strong>Download imediato</strong><span>O MP3 fica salvo em /static/conversor/jobs</span></div></div>
+          <div class="statChip"><div class="icon">&#127909;</div><div><strong>Processamento de Alta Performance</strong><span>Geração de áudios MP3, WAV e OGG</span></div></div>
+          <div class="statChip"><div class="icon">&#9889;</div><div><strong>Tecnologia Demucs & FFmpeg</strong><span>Inteligência Artificial e manipulação nativa</span></div></div>
+          <div class="statChip"><div class="icon">&#128190;</div><div><strong>Trabalho Local e Seguro</strong><span>Arquivos salvos diretamente em /static/conversor</span></div></div>
         </div>
       </section>
 
       <section class="grid">
-        <div class="panel">
-          <div class="panelTitle">
-            <div>
-              <h2>Configurar conversao</h2>
-              <p>Selecione o video e a qualidade do audio</p>
-            </div>
-          </div>
-
+        <div class="panel" style="padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow);">
           {% if erro %}
-            <div class="alert">{{ erro }}</div>
+            <div class="alert" style="margin-bottom: 16px;">{{ erro }}</div>
           {% endif %}
 
-          <form id="conversorForm" method="post" enctype="multipart/form-data">
-            <div class="field">
-              <label>Arquivo de video</label>
-              <label class="dropzone" id="dropzone">
-                <div class="dzIcon">&#128190;</div>
-                <strong id="dzTitle">Arraste o video aqui ou clique para selecionar</strong>
-                <span id="dzHint">Formatos suportados: MP4, MOV, MKV, AVI, WEBM, FLV, MPG, MPEG, WMV, 3GP</span>
-                <input type="file" id="arquivo_video" name="arquivo_video" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.flv,.mpg,.mpeg,.wmv,.3gp" required>
-              </label>
-            </div>
+          <div class="tabsNav">
+            <button class="tabBtn is-active" onclick="switchTab('accVideoAudio', this)">Vídeo para Áudio</button>
+            <button class="tabBtn" onclick="switchTab('accAudioAudio', this)">Áudio para Áudio</button>
+            <button class="tabBtn" onclick="switchTab('accCortar', this)">Cortador</button>
+            <button class="tabBtn" onclick="switchTab('accJuntar', this)">Mesclador</button>
+            <button class="tabBtn" onclick="switchTab('accSubstituir', this)">Trocar Áudio de Vídeo</button>
+            <button class="tabBtn" onclick="switchTab('accTom', this)">Alterador de Tom</button>
+          </div>
 
-            <div class="field">
-              <label>Qualidade do MP3 (kbps)</label>
-              <div class="choices" id="bitrateChoices">
-                <label class="choice {% if bitrate == '128' %}is-active{% endif %}" data-value="128">
-                  <input type="radio" name="bitrate" value="128" {% if bitrate == '128' %}checked{% endif %}>
-                  <strong>128</strong>
-                  <span>Leve</span>
-                </label>
-                <label class="choice {% if bitrate == '192' %}is-active{% endif %}" data-value="192">
-                  <input type="radio" name="bitrate" value="192" {% if bitrate == '192' %}checked{% endif %}>
-                  <strong>192</strong>
-                  <span>Balanceado</span>
-                </label>
-                <label class="choice {% if bitrate == '256' %}is-active{% endif %}" data-value="256">
-                  <input type="radio" name="bitrate" value="256" {% if bitrate == '256' %}checked{% endif %}>
-                  <strong>256</strong>
-                  <span>Alta</span>
-                </label>
-                <label class="choice {% if bitrate == '320' %}is-active{% endif %}" data-value="320">
-                  <input type="radio" name="bitrate" value="320" {% if bitrate == '320' %}checked{% endif %}>
-                  <strong>320</strong>
-                  <span>Maxima</span>
+          <!-- TAB 1: VIDEO TO AUDIO -->
+          <div class="tabContent is-active" id="accVideoAudio">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="video_audio">
+              
+              <div class="field">
+                <label>Arquivo de Vídeo</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#128190;</div>
+                  <strong class="dzTitle">Arraste o vídeo aqui ou clique para selecionar</strong>
+                  <span class="dzHint">Formatos: MP4, MOV, MKV, AVI, WEBM, WMV, etc.</span>
+                  <input type="file" name="arquivo_video" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.flv,.mpg,.mpeg,.wmv,.3gp" required onchange="atualizarDropzoneLabel(this)">
                 </label>
               </div>
-            </div>
 
-            <button type="submit" class="submitBtn" id="submitBtn">&#127911; Converter para MP3</button>
-          </form>
+              <div class="field">
+                <label>Formato de Saída</label>
+                <div class="choices" style="grid-template-columns: repeat(2, 1fr);">
+                  <label class="choice is-active" data-value="mp3">
+                    <input type="radio" name="formato_saida" value="mp3" checked onchange="toggleFormatFields(this, 'accVideoAudio')">
+                    <strong>MP3</strong>
+                    <span>Estereofônico</span>
+                  </label>
+                  <label class="choice" data-value="wav">
+                    <input type="radio" name="formato_saida" value="wav" onchange="toggleFormatFields(this, 'accVideoAudio')">
+                    <strong>WAV</strong>
+                    <span>Alta Fidelidade</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field targetBitrate">
+                <label>Qualidade do MP3 (kbps)</label>
+                <div class="choices">
+                  <label class="choice" data-value="128">
+                    <input type="radio" name="bitrate" value="128">
+                    <strong>128</strong>
+                    <span>Leve</span>
+                  </label>
+                  <label class="choice is-active" data-value="192">
+                    <input type="radio" name="bitrate" value="192" checked>
+                    <strong>192</strong>
+                    <span>Média</span>
+                  </label>
+                  <label class="choice" data-value="256">
+                    <input type="radio" name="bitrate" value="256">
+                    <strong>256</strong>
+                    <span>Alta</span>
+                  </label>
+                  <label class="choice" data-value="320">
+                    <input type="radio" name="bitrate" value="320">
+                    <strong>320</strong>
+                    <span>Máxima</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style="display: grid; gap: 12px; margin-top: 20px;">
+                <button type="submit" name="modo" value="completo" class="submitBtn" style="background: linear-gradient(135deg, var(--accent), var(--accent-2));">&#127911; Extrair Áudio Completo</button>
+                <button type="submit" name="modo" value="voz" class="submitBtn" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">&#127897; Extrair Somente Voz (Demucs)</button>
+                <button type="submit" name="modo" value="instrumental" class="submitBtn" style="background: linear-gradient(135deg, #3b82f6, #10b981);">&#127928; Extrair Somente Instrumental (Demucs)</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- TAB 2: AUDIO TO AUDIO -->
+          <div class="tabContent" id="accAudioAudio">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="audio_audio">
+
+              <div class="field">
+                <label>Arquivo de Áudio</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#127911;</div>
+                  <strong class="dzTitle">Arraste o áudio aqui ou clique para selecionar</strong>
+                  <span class="dzHint">Formatos: MP3, WAV, OGG, M4A, FLAC, WMA, AAC</span>
+                  <input type="file" name="arquivo_audio" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.wma,.aac" required onchange="atualizarDropzoneLabel(this)">
+                </label>
+              </div>
+
+              <div class="field">
+                <label>Formato de Saída</label>
+                <div class="choices" style="grid-template-columns: repeat(3, 1fr);">
+                  <label class="choice is-active" data-value="mp3">
+                    <input type="radio" name="formato_saida" value="mp3" checked onchange="toggleFormatFields(this, 'accAudioAudio')">
+                    <strong>MP3</strong>
+                    <span>Padrão</span>
+                  </label>
+                  <label class="choice" data-value="wav">
+                    <input type="radio" name="formato_saida" value="wav" onchange="toggleFormatFields(this, 'accAudioAudio')">
+                    <strong>WAV</strong>
+                    <span>Sem perdas</span>
+                  </label>
+                  <label class="choice" data-value="ogg">
+                    <input type="radio" name="formato_saida" value="ogg" onchange="toggleFormatFields(this, 'accAudioAudio')">
+                    <strong>OGG</strong>
+                    <span>Vorbis</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field targetBitrate">
+                <label>Qualidade do Áudio (kbps)</label>
+                <div class="choices">
+                  <label class="choice" data-value="128">
+                    <input type="radio" name="bitrate" value="128">
+                    <strong>128</strong>
+                    <span>Leve</span>
+                  </label>
+                  <label class="choice is-active" data-value="192">
+                    <input type="radio" name="bitrate" value="192" checked>
+                    <strong>192</strong>
+                    <span>Média</span>
+                  </label>
+                  <label class="choice" data-value="256">
+                    <input type="radio" name="bitrate" value="256">
+                    <strong>256</strong>
+                    <span>Alta</span>
+                  </label>
+                  <label class="choice" data-value="320">
+                    <input type="radio" name="bitrate" value="320">
+                    <strong>320</strong>
+                    <span>Máxima</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="submitBtn" style="margin-top: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2));">&#127911; Converter Áudio</button>
+            </form>
+          </div>
+
+          <!-- TAB 3: AUDIO CUTTER -->
+          <div class="tabContent" id="accCortar">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="cortar">
+
+              <div class="field">
+                <label>Arquivo de Áudio ou Vídeo</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#128221;</div>
+                  <strong class="dzTitle">Selecione o arquivo para cortar</strong>
+                  <span class="dzHint">Formatos suportados de áudio e vídeo</span>
+                  <input type="file" name="arquivo_cortar" accept="audio/*,video/*,.mp3,.wav,.ogg,.m4a,.flac,.mp4,.mov,.mkv,.avi" required onchange="atualizarDropzoneLabel(this)">
+                </label>
+              </div>
+
+              <div class="field" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                  <label>Tempo de Início</label>
+                  <input type="text" name="tempo_inicio" placeholder="Ex: 00:00:10 ou 10" style="width:100%; padding: 12px; background: rgba(0,0,0,0.3); border:1px solid var(--line); border-radius:10px; color:var(--text);" required>
+                </div>
+                <div>
+                  <label>Tempo de Fim</label>
+                  <input type="text" name="tempo_fim" placeholder="Ex: 00:00:30 ou 30" style="width:100%; padding: 12px; background: rgba(0,0,0,0.3); border:1px solid var(--line); border-radius:10px; color:var(--text);" required>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Formato de Saída</label>
+                <div class="choices" style="grid-template-columns: repeat(3, 1fr);">
+                  <label class="choice is-active" data-value="mp3">
+                    <input type="radio" name="formato_saida" value="mp3" checked onchange="toggleFormatFields(this, 'accCortar')">
+                    <strong>MP3</strong>
+                    <span>Padrão</span>
+                  </label>
+                  <label class="choice" data-value="wav">
+                    <input type="radio" name="formato_saida" value="wav" onchange="toggleFormatFields(this, 'accCortar')">
+                    <strong>WAV</strong>
+                    <span>Sem perdas</span>
+                  </label>
+                  <label class="choice" data-value="ogg">
+                    <input type="radio" name="formato_saida" value="ogg" onchange="toggleFormatFields(this, 'accCortar')">
+                    <strong>OGG</strong>
+                    <span>Vorbis</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field targetBitrate">
+                <label>Qualidade (kbps)</label>
+                <div class="choices">
+                  <label class="choice is-active" data-value="192">
+                    <input type="radio" name="bitrate" value="192" checked>
+                    <strong>192</strong>
+                    <span>Média</span>
+                  </label>
+                  <label class="choice" data-value="320">
+                    <input type="radio" name="bitrate" value="320">
+                    <strong>320</strong>
+                    <span>Máxima</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="submitBtn" style="margin-top: 20px; background: linear-gradient(135deg, #f59e0b, #e11d48);">&#9986; Cortar e Salvar</button>
+            </form>
+          </div>
+
+          <!-- TAB 4: AUDIO JOINER -->
+          <div class="tabContent" id="accJuntar">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="juntar">
+
+              <div class="field">
+                <label>Arquivos de Áudio (Selecione vários)</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#128194;</div>
+                  <strong class="dzTitle">Selecione 2 ou mais áudios para juntar</strong>
+                  <span class="dzHint">Você pode selecionar múltiplos arquivos na pasta</span>
+                  <input type="file" name="arquivos_juntar" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac" multiple required onchange="atualizarDropzoneList(this)">
+                </label>
+                <div class="fileList" id="juntarFileList" style="display:none;"></div>
+              </div>
+
+              <div class="field">
+                <label>Formato de Saída</label>
+                <div class="choices" style="grid-template-columns: repeat(3, 1fr);">
+                  <label class="choice is-active" data-value="mp3">
+                    <input type="radio" name="formato_saida" value="mp3" checked onchange="toggleFormatFields(this, 'accJuntar')">
+                    <strong>MP3</strong>
+                    <span>Padrão</span>
+                  </label>
+                  <label class="choice" data-value="wav">
+                    <input type="radio" name="formato_saida" value="wav" onchange="toggleFormatFields(this, 'accJuntar')">
+                    <strong>WAV</strong>
+                    <span>Sem perdas</span>
+                  </label>
+                  <label class="choice" data-value="ogg">
+                    <input type="radio" name="formato_saida" value="ogg" onchange="toggleFormatFields(this, 'accJuntar')">
+                    <strong>OGG</strong>
+                    <span>Vorbis</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field targetBitrate">
+                <label>Qualidade (kbps)</label>
+                <div class="choices">
+                  <label class="choice is-active" data-value="192">
+                    <input type="radio" name="bitrate" value="192" checked>
+                    <strong>192</strong>
+                    <span>Média</span>
+                  </label>
+                  <label class="choice" data-value="320">
+                    <input type="radio" name="bitrate" value="320">
+                    <strong>320</strong>
+                    <span>Máxima</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="submitBtn" style="margin-top: 20px; background: linear-gradient(135deg, #10b981, #059669);">&#128279; Mesclar e Gerar Áudio</button>
+            </form>
+          </div>
+
+          <!-- TAB 5: VIDEO AUDIO REPLACER -->
+          <div class="tabContent" id="accSubstituir">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="substituir_audio">
+
+              <div class="field">
+                <label>Arquivo de Vídeo Original</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#127916;</div>
+                  <strong class="dzTitle">Selecione o vídeo original</strong>
+                  <span class="dzHint">Formatos: MP4, MOV, MKV, AVI, etc.</span>
+                  <input type="file" name="arquivo_video" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.wmv" required onchange="atualizarDropzoneLabel(this)">
+                </label>
+              </div>
+
+              <div class="field">
+                <label>Nova Faixa de Áudio</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#127911;</div>
+                  <strong class="dzTitle">Selecione a nova faixa de áudio</strong>
+                  <span class="dzHint">Formatos: MP3, WAV, OGG, M4A, FLAC, etc.</span>
+                  <input type="file" name="arquivo_audio_novo" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac" required onchange="atualizarDropzoneLabel(this)">
+                </label>
+              </div>
+
+              <button type="submit" class="submitBtn" style="margin-top: 20px; background: linear-gradient(135deg, #7c3aed, #db2777);">&#127916; Substituir Áudio do Vídeo</button>
+            </form>
+          </div>
+
+          <!-- TAB 6: PITCH SHIFTER -->
+          <div class="tabContent" id="accTom">
+            <form action="/conversor" method="post" enctype="multipart/form-data">
+              <input type="hidden" name="tipo_conversao" value="tom">
+              <input type="hidden" name="job_id_orig" id="job_id_orig" value="">
+
+              <div class="field">
+                <label>Arquivo de Áudio</label>
+                <label class="dropzone">
+                  <div class="dzIcon">&#127911;</div>
+                  <strong class="dzTitle" id="dzTitleTom">Selecione o áudio para alterar o tom</strong>
+                  <span class="dzHint" id="dzHintTom">Formatos: MP3, WAV, OGG, M4A, FLAC, etc.</span>
+                  <input type="file" name="arquivo_tom" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac" required onchange="uploadOriginalFileForPreview(this)">
+                </label>
+              </div>
+
+              <!-- PREVIEW CONTAINER (hidden initially) -->
+              <div id="previewControlsContainer" style="display: none; margin: 20px 0; padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); border-radius: 12px; display: none; flex-direction: column; gap: 10px;">
+                <label style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--accent); letter-spacing: 0.05em;">Ouvir Alteração em Tempo Real (Pré-escuta de 20s)</label>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <audio id="previewAudioPlayer" controls style="flex: 1; background: #141821; border-radius: 999px;"></audio>
+                  <button type="button" id="updatePreviewBtn" onclick="gerarNovaPreEscuta()" class="tabBtn" style="padding: 12px 18px; margin: 0; background: var(--accent-2); color: white; border: none; border-radius: 10px;">Aplicar Tom no Player</button>
+                </div>
+                <span id="previewStatusText" style="font-size: 12px; color: var(--muted);">Ajuste o controle abaixo e clique para processar a pré-escuta.</span>
+              </div>
+
+              <div class="field">
+                <label>Ajuste de Semitons (Tom)</label>
+                <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+                  <input type="range" name="semitons" id="semitonsSlider" min="-6" max="6" step="1" value="0" style="flex: 1; accent-color: var(--accent);" oninput="document.getElementById('semitonsValue').textContent = (this.value >= 0 ? '+' : '') + this.value + ' semitons'">
+                  <strong id="semitonsValue" style="font-size: 16px; min-width: 100px; text-align: right;">0 semitons</strong>
+                </div>
+                <span style="font-size: 12px; color: var(--muted); margin-top: 6px; display: block;">Arraste para a esquerda para diminuir o tom ou para a direita para aumentar o tom.</span>
+              </div>
+
+              <div class="field">
+                <label>Formato de Saída</label>
+                <div class="choices" style="grid-template-columns: repeat(3, 1fr);">
+                  <label class="choice is-active" data-value="mp3">
+                    <input type="radio" name="formato_saida" value="mp3" checked onchange="toggleFormatFields(this, 'accTom')">
+                    <strong>MP3</strong>
+                    <span>Padrão</span>
+                  </label>
+                  <label class="choice" data-value="wav">
+                    <input type="radio" name="formato_saida" value="wav" onchange="toggleFormatFields(this, 'accTom')">
+                    <strong>WAV</strong>
+                    <span>Sem perdas</span>
+                  </label>
+                  <label class="choice" data-value="ogg">
+                    <input type="radio" name="formato_saida" value="ogg" onchange="toggleFormatFields(this, 'accTom')">
+                    <strong>OGG</strong>
+                    <span>Vorbis</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field targetBitrate">
+                <label>Qualidade (kbps)</label>
+                <div class="choices">
+                  <label class="choice is-active" data-value="192">
+                    <input type="radio" name="bitrate" value="192" checked>
+                    <strong>192</strong>
+                    <span>Média</span>
+                  </label>
+                  <label class="choice" data-value="320">
+                    <input type="radio" name="bitrate" value="320">
+                    <strong>320</strong>
+                    <span>Máxima</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="submitBtn" style="margin-top: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2));">&#127925; Processar e Alterar Tom</button>
+            </form>
+          </div>
+
         </div>
 
         <div class="panel">
@@ -367,7 +755,7 @@
               <div class="progress"><div class="progressBar" id="progressBar" style="width: {{ progresso }}%"></div></div>
               <div class="statusRow">
                 <span id="statusMensagem">{{ mensagem_status }}</span>
-                <span id="statusJob" style="opacity:.6">job: {{ job_id[:8] }}</span>
+                <span id="statusJob" data-job-id="{{ job_id }}" style="opacity:.6">job: {{ job_id[:8] }}</span>
               </div>
             </div>
 
@@ -387,82 +775,140 @@
             </p>
           {% endif %}
         </div>
-      </section>
-    </main>
-  </div>
+     <script>
+    // Tab Switcher
+    function switchTab(tabId, btn) {
+      const contents = document.querySelectorAll('.tabContent');
+      contents.forEach(content => {
+        if (content.id === tabId) {
+          content.classList.add('is-active');
+        } else {
+          content.classList.remove('is-active');
+        }
+      });
+      const buttons = document.querySelectorAll('.tabBtn');
+      buttons.forEach(button => {
+        button.classList.remove('is-active');
+      });
+      if (btn) {
+        btn.classList.add('is-active');
+      }
+    }
 
-  <script>
+    // Update Dropzone label for single files
+    function atualizarDropzoneLabel(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      const parent = input.closest('.dropzone');
+      if (parent) {
+        const title = parent.querySelector('.dzTitle');
+        const hint = parent.querySelector('.dzHint');
+        if (title) title.textContent = file.name;
+        if (hint) hint.textContent = `${mb} MB - clique para trocar`;
+      }
+    }
+
+    // Update Dropzone list for multiple files (Concat tool)
+    function atualizarDropzoneList(input) {
+      const container = document.getElementById('juntarFileList');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!input.files || input.files.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = 'flex';
+      Array.from(input.files).forEach((file, idx) => {
+        const item = document.createElement('div');
+        item.className = 'fileListItem';
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        item.innerHTML = `
+          <span><strong>${idx + 1}.</strong> ${file.name} (${mb} MB)</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Toggle Bitrate inputs depending on chosen Output Format (e.g. hide for WAV)
+    function toggleFormatFields(radio, accId) {
+      const accordion = document.getElementById(accId);
+      if (!accordion) return;
+      const bitrateField = accordion.querySelector('.targetBitrate');
+      if (bitrateField) {
+        if (radio.value === 'wav') {
+          bitrateField.style.display = 'none';
+        } else {
+          bitrateField.style.display = 'block';
+        }
+      }
+    }
+
     (function () {
-      const dropzone = document.getElementById('dropzone');
-      const fileInput = document.getElementById('arquivo_video');
-      const dzTitle = document.getElementById('dzTitle');
-      const dzHint = document.getElementById('dzHint');
-      const choices = document.querySelectorAll('#bitrateChoices .choice');
-      const radios = document.querySelectorAll('#bitrateChoices input[type=radio]');
-      const submitBtn = document.getElementById('submitBtn');
-      const form = document.getElementById('conversorForm');
+      // Dynamic choice click listener for choices buttons
+      document.addEventListener('click', function(e) {
+        const choiceLabel = e.target.closest('.choices .choice');
+        if (choiceLabel) {
+          const container = choiceLabel.closest('.choices');
+          const radio = choiceLabel.querySelector('input[type="radio"]');
+          if (radio) {
+            radio.checked = true;
+            // Trigger change event to fire any toggleFormatFields
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Sync active classes in this choice container
+            container.querySelectorAll('.choice').forEach(c => {
+              const input = c.querySelector('input');
+              if (input && input.checked) {
+                c.classList.add('is-active');
+              } else {
+                c.classList.remove('is-active');
+              }
+            });
+          }
+        }
+      });
 
-      function atualizarDropzone() {
-        if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
-        const arquivo = fileInput.files[0];
-        const tamanhoMB = (arquivo.size / (1024 * 1024)).toFixed(1);
-        dzTitle.textContent = arquivo.name;
-        dzHint.textContent = `${tamanhoMB} MB - clique para trocar o arquivo`;
-      }
+      // Track submit button clicks to know which button submitted which form
+      let clickedBtn = null;
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.submitBtn');
+        if (btn) {
+          clickedBtn = btn;
+        }
+      });
 
-      if (fileInput) {
-        fileInput.addEventListener('change', atualizarDropzone);
-      }
+      // Apply spinners and disable on submit for all forms
+      const forms = document.querySelectorAll('form');
+      forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+          const formButtons = form.querySelectorAll('.submitBtn');
+          
+          if (clickedBtn && clickedBtn.closest('form') === form) {
+            // If the clicked button had a name/value (like the mode for video extraction), append as hidden
+            if (clickedBtn.name) {
+              const hiddenInput = document.createElement('input');
+              hiddenInput.type = 'hidden';
+              hiddenInput.name = clickedBtn.name;
+              hiddenInput.value = clickedBtn.value;
+              form.appendChild(hiddenInput);
+            }
+          }
 
-      if (dropzone) {
-        ['dragenter', 'dragover'].forEach((evt) => {
-          dropzone.addEventListener(evt, (e) => {
-            e.preventDefault(); e.stopPropagation();
-            dropzone.classList.add('dragover');
+          // Disable all submit buttons on the page to prevent multiple operations
+          document.querySelectorAll('.submitBtn').forEach(btn => {
+            btn.disabled = true;
           });
-        });
-        ['dragleave', 'drop'].forEach((evt) => {
-          dropzone.addEventListener(evt, (e) => {
-            e.preventDefault(); e.stopPropagation();
-            dropzone.classList.remove('dragover');
-          });
-        });
-        dropzone.addEventListener('drop', (e) => {
-          if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files[0]) return;
-          fileInput.files = e.dataTransfer.files;
-          atualizarDropzone();
-        });
-      }
 
-      function syncChoices() {
-        choices.forEach((el) => {
-          const input = el.querySelector('input[type=radio]');
-          if (input && input.checked) el.classList.add('is-active');
-          else el.classList.remove('is-active');
-        });
-      }
-
-      choices.forEach((el) => {
-        el.addEventListener('click', () => {
-          const input = el.querySelector('input[type=radio]');
-          if (input) {
-            input.checked = true;
-            syncChoices();
+          if (clickedBtn) {
+            clickedBtn.innerHTML = '<span class="spinnerMini"></span> Processando...';
           }
         });
       });
-      radios.forEach((r) => r.addEventListener('change', syncChoices));
-      syncChoices();
 
-      if (form && submitBtn) {
-        form.addEventListener('submit', () => {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<span class="spinnerMini"></span> Enviando...';
-        });
-      }
-
+      // Poll Job Status if job_id exists
       const jobIdEl = document.getElementById('statusJob');
-      const jobId = jobIdEl ? (jobIdEl.textContent || '').replace('job: ', '').trim() : '';
+      const jobId = jobIdEl ? (jobIdEl.dataset.jobId || '').trim() : '';
 
       if (jobId) {
         const progressBar = document.getElementById('progressBar');
@@ -480,18 +926,25 @@
           if (statusMensagem && dados.mensagem) statusMensagem.textContent = dados.mensagem;
 
           if (dados.status === 'completed') {
-            if (statusTitulo) statusTitulo.textContent = 'Conversao concluida';
-            if (statusBadge) statusBadge.innerHTML = '<span class="badgeOk">Concluido</span>';
+            if (statusTitulo) statusTitulo.textContent = 'Conversão concluída';
+            if (statusBadge) statusBadge.innerHTML = '<span class="badgeOk">Concluído</span>';
             if (downloadBtn && dados.download_url) {
               downloadBtn.href = dados.download_url;
               downloadBtn.classList.remove('hidden');
+              const filename = dados.output_filename || '';
+              const ext = filename.split('.').pop().toLowerCase();
+              if (['mp4', 'mov', 'mkv', 'avi', 'webm', 'flv'].includes(ext)) {
+                downloadBtn.innerHTML = `&#11015; Baixar Vídeo (${ext.toUpperCase()})`;
+              } else {
+                downloadBtn.innerHTML = `&#11015; Baixar Áudio (${ext.toUpperCase()})`;
+              }
             }
           } else if (dados.status === 'failed') {
-            if (statusTitulo) statusTitulo.textContent = 'Falha na conversao';
+            if (statusTitulo) statusTitulo.textContent = 'Falha no processamento';
             if (statusBadge) statusBadge.innerHTML = '<span class="badgeFail">Falhou</span>';
             if (statusMensagem && dados.erro) statusMensagem.textContent = dados.erro;
           } else {
-            if (statusTitulo) statusTitulo.textContent = 'Convertendo...';
+            if (statusTitulo) statusTitulo.textContent = 'Processando...';
           }
         };
 
@@ -523,6 +976,89 @@
 
         consultar();
       }
+
+      window.uploadOriginalFileForPreview = async function(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        const title = document.getElementById('dzTitleTom');
+        const hint = document.getElementById('dzHintTom');
+        if (title) title.textContent = "Carregando " + file.name + "...";
+        if (hint) hint.textContent = `Aguarde o envio do arquivo (${mb} MB)...`;
+        
+        const formData = new FormData();
+        formData.append('arquivo', file);
+        
+        try {
+          const res = await fetch('/conversor/upload_temp', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (data.ok) {
+            document.getElementById('job_id_orig').value = data.job_id;
+            if (title) title.textContent = file.name;
+            if (hint) hint.textContent = `${mb} MB - carregado com sucesso`;
+            const container = document.getElementById('previewControlsContainer');
+            if (container) {
+              container.style.display = 'flex';
+            }
+            gerarNovaPreEscuta();
+          } else {
+            alert('Erro ao enviar arquivo: ' + (data.erro || 'Erro desconhecido'));
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Erro de conexão ao enviar arquivo temporário.');
+        }
+      };
+
+      window.gerarNovaPreEscuta = async function() {
+        const jobId = document.getElementById('job_id_orig').value;
+        const semitons = document.getElementById('semitonsSlider').value;
+        const statusText = document.getElementById('previewStatusText');
+        const audioPlayer = document.getElementById('previewAudioPlayer');
+        const updateBtn = document.getElementById('updatePreviewBtn');
+        
+        if (!jobId) {
+          alert('Envie um arquivo de áudio primeiro!');
+          return;
+        }
+        
+        if (statusText) statusText.textContent = "Processando nova pré-escuta...";
+        if (updateBtn) {
+          updateBtn.disabled = true;
+          updateBtn.innerHTML = '<span class="spinnerMini"></span> Aguarde...';
+        }
+        
+        const formData = new FormData();
+        formData.append('job_id', jobId);
+        formData.append('semitons', semitons);
+        
+        try {
+          const res = await fetch('/conversor/preview', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (data.ok && data.preview_url) {
+            audioPlayer.src = data.preview_url;
+            audioPlayer.load();
+            audioPlayer.play().catch(() => {});
+            if (statusText) statusText.textContent = `Pré-escuta de 20s carregada para o tom: ${semitons >= 0 ? '+' : ''}${semitons} semitons.`;
+          } else {
+            if (statusText) statusText.textContent = "Erro ao processar áudio: " + (data.erro || 'Falha no ffmpeg');
+          }
+        } catch (err) {
+          console.error(err);
+          if (statusText) statusText.textContent = "Erro de conexão ao processar áudio.";
+        } finally {
+          if (updateBtn) {
+            updateBtn.disabled = false;
+            updateBtn.innerHTML = 'Aplicar Tom no Player';
+          }
+        }
+      };
     })();
   </script>
 </body>

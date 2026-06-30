@@ -1,11 +1,13 @@
 import re
 import math
 import sqlite3
+import urllib.parse
+import requests
 from pathlib import Path
 from flask import Blueprint, request, redirect, url_for, render_template, session, jsonify, Response
 
 from modules.layout import header
-from modules.config import DB, connect_db, slugify, normalizar_slug
+from modules.config import DB, connect_db, slugify, normalizar_slug, transpor_acordes
 from modules.ui_helpers import home_dashboard_data, fmt_int
 
 main_bp = Blueprint('main', __name__)
@@ -73,9 +75,13 @@ def home():
     dashboard = home_dashboard_data(c)
     conn.close()
 
-    # Categorizando as ferramentas para maior clareza visual
     ferramentas_estudio = [
         ("CifrasFlix DAW", "Produza suas músicas com um estúdio online completo.", "/daw", "Abrir DAW"),
+        ("Conversor & Edição", "Converta formatos, corte, junte áudios e altere o tom em tempo real.", "/conversor", "Abrir Conversor"),
+        ("Afinador Digital", "Afine seu violão, guitarra ou outro instrumento diretamente pelo navegador.", "/afinador", "Afinar agora"),
+        ("Estúdio Jam & Voz", "Grave sua voz e instrumento com efeitos de reverb e delay integrados.", "/jam-studio", "Iniciar Jam"),
+        ("Dicionário de Acordes", "Busque posições de acordes e visualize os diagramas com áudio interativo de violão.", "/dicionario", "Abrir dicionário"),
+        ("Dicionário de Estilos", "Aprenda a estrutura dos acordes de cada gênero musical e compreenda as regras da harmonia.", "/estilos", "Aprender"),
         ("FlixPlay", "Explore o acervo de músicas e abra as cifras em modo player.", "/flix-play", "Tocar agora"),
         ("Music Genius", "Transcreva acordes de links do YouTube sincronizados.", "/mp3detect", "Analisar áudio"),
         ("Separador de Áudio", "Isole vocais, bateria, baixo e instrumentos de qualquer música.", "/separar-audio", "Separar stems"),
@@ -85,7 +91,7 @@ def home():
 
     ferramentas_gerenciamento = [
         ("Discografias", "Navegue pelos álbuns por artista e organize sua biblioteca.", "/albuns", "Ver álbuns"),
-        ("Músicas Favoritas", "Acesse rapidamente suas cifras marcadas com coração.", "/favoritos", "Ver favoritos"),
+        ("Músicas Favoritas", "Acesse rapidamente suas cifras marcadas com coração.", "/painel", "Ver favoritos"),
         ("Importador TXT", "Sincronize e atualize o catálogo principal de cifras.", "/importar", "Importar"),
         ("Atualizar Capas", "Faça o download e atualize imagens de artistas e álbuns.", "/atualizarfoto", "Atualizar"),
         ("MusicBrainz", "Busque metadados avançados e edições externas de álbuns.", "/mb_album", "Caçar álbuns")
@@ -1146,6 +1152,27 @@ def musica(slug, uid):
         (musica_id,)
     )
 
+    c.execute("SELECT id FROM favoritos WHERE musica_id = ?", (musica_id,))
+    is_favorited = c.fetchone() is not None
+
+    playlists = []
+    if session.get("user") == "adm":
+        c.execute("SELECT id, nome FROM playlists ORDER BY nome")
+        playlists = c.fetchall()
+
+    playlist_options = "".join([f'<option value="{pid}">{pnome}</option>' for pid, pnome in playlists])
+    playlist_selector_html = ""
+    if playlists:
+        playlist_selector_html = f"""
+        <form method="POST" action="/painel/playlist/adicionar" style="margin-top: 10px;">
+            <input type="hidden" name="musica_id" value="{musica_id}" />
+            <select name="playlist_id" onchange="this.form.submit()" autocomplete="off" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; font-weight: bold; color: #475569; font-size: 13px; cursor: pointer; outline: none; box-sizing: border-box;">
+                <option value="" selected>➕ Adicionar a Playlist...</option>
+                {playlist_options}
+            </select>
+        </form>
+        """
+
     conn.commit()
     conn.close()
 
@@ -1356,6 +1383,8 @@ def musica(slug, uid):
         .songCenter{{
     min-width:0;
     width:100%;
+    position:relative;
+    z-index:2000;
 }}
 
 .cifraBox{{
@@ -1508,9 +1537,56 @@ def musica(slug, uid):
             border-color: #00e676;
         }}
 
-        
+        /* Chord Tooltip & Styling */
+        .chord {{
+            color: #ff7a00;
+            font-weight: 700;
+            position: relative;
+            cursor: pointer;
+            display: inline-block;
+            padding: 0 4px;
+            border-radius: 4px;
+            background: rgba(255, 122, 0, 0.05);
+            transition: all 0.15s ease;
+        }}
+        .chord:hover {{
+            background: #ff7a00;
+            color: #fff !important;
+        }}
+        .chord-diagram {{
+            display: none;
+            position: fixed;
+            transform: translateX(-50%);
+            z-index: 99999999;
+            pointer-events: auto;
+            animation: chordFadeIn 0.15s ease-out;
+        }}
+        @keyframes chordFadeIn {{
+            from {{ opacity: 0; transform: translate(-50%, 8px); }}
+            to {{ opacity: 1; transform: translate(-50%, 0); }}
+        }}
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
         <script>
+        let guitarPlayer = null;
+        let audioCtx = null;
+        function initSoundfont() {{
+            if (audioCtx) return;
+            try {{
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+                const preset = localStorage.getItem("defaultPreset") || "acoustic_guitar_nylon";
+                Soundfont.instrument(audioCtx, preset).then(function (inst) {{
+                    guitarPlayer = inst;
+                }}).catch(e => console.log("SoundFont failed, using synth", e));
+            }} catch(e) {{
+                console.log("Audio not supported", e);
+            }}
+        }}
+        // Initialize early on interaction
+        document.addEventListener("mouseenter", initSoundfont, {{ once: true }});
+        document.addEventListener("click", initSoundfont, {{ once: true }});
+
         function trocarVersao(uid){{
             const partes = window.location.pathname.split("/");
             const artista = partes[2];
@@ -1547,20 +1623,25 @@ def musica(slug, uid):
                     <div class="transposePanel">
                         <button class="controlBtn toneStep" onclick="transpor(-1)">-</button>
                         <div class="transposeState">
-                            <strong>{tom_musica}</strong>
+                            <strong id="currentKeyLabel" data-original-key="{tom_musica}">{tom_musica}</strong>
                             <span id="transposeLabel">{semitons:+d} semitons</span>
                         </div>
                         <button class="controlBtn toneStep" onclick="transpor(1)">+</button>
                     </div>
-                    <div class="transposeQuick">
-                        <button class="controlBtn" onclick="transpor(-2)">-1 tom</button>
-                        <button class="controlBtn" onclick="resetTransposicao()">Original</button>
-                        <button class="controlBtn" onclick="transpor(2)">+1 tom</button>
-                    </div>
+                    <button class="controlBtn resetToneBtn" onclick="resetTransposicao()" style="width: 100%; margin-top: 10px; margin-bottom: 10px;">
+                        Restaurar original
+                    </button>
 
                     <button class="controlBtn favoriteWide"
-                        onclick="location.href='/favoritar/{musica_id}'">
-                        Favoritar
+                        onclick="location.href='/favoritar/{musica_id}'"
+                        style="background: {'#ffebe0' if is_favorited else '#fff'}; color: {'#ff7a00' if is_favorited else '#4b5563'}; border-color: {'#ff7a00' if is_favorited else '#d1d5db'}; font-weight: bold;">
+                        {'❤️ Curtida' if is_favorited else '🤍 Curtir Cifra'}
+                    </button>
+                    
+                    {playlist_selector_html}
+                    
+                    <button class="controlBtn" id="leftHandedToggleBtn" onclick="toggleLeftHanded()" style="width: 100%; margin-top: 10px; background: #374151; color: #fff;">
+                        Modo Canhoto: Desativado
                     </button>
                 </div>
 
@@ -1573,9 +1654,9 @@ def musica(slug, uid):
 
                     <div class="speedBox autoScrollBox">
                         <span>Velocidade</span>
-                        <button class="controlBtn" onclick="changeSpeed(-0.2)">-</button>
+                        <button class="controlBtn" onclick="changeSpeed(-0.1)">-</button>
                         <span id="speedLabel">1.0x</span>
-                        <button class="controlBtn" onclick="changeSpeed(0.2)">+</button>
+                        <button class="controlBtn" onclick="changeSpeed(0.1)">+</button>
                     </div>
                     <div class="autoScrollHint">Espaco pausa/continua. Esc interrompe.</div>
                 </div>
@@ -1597,7 +1678,7 @@ def musica(slug, uid):
                     </div>
                     <div class="musicMetaCard highlight">
                         <span>Tom</span>
-                        <strong>{tom_musica}</strong>
+                        <strong id="currentKeyMeta" data-original-key="{tom_musica}">{tom_musica}</strong>
                     </div>
                 </div>
                 <pre class="cifraBox">{conteudo}</pre>
@@ -1608,13 +1689,84 @@ def musica(slug, uid):
                 <div class="videoWrapper">
                    {iframe_video}
                 </div>
+                <div id="asideChordDictionary" style="margin-top:20px;"></div>
             </aside>
 
         </div>
 
         </main>
+    <script src="/static/js/chords_db_v2.js?v=2.0"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function () {{
+
+        const playChordSound = (shape) => {{
+            if (!shape) return;
+            try {{
+                if (!audioCtx) {{
+                    initSoundfont();
+                }}
+                if (audioCtx && audioCtx.state === 'suspended') {{
+                    audioCtx.resume();
+                }}
+                const baseMidi = [40, 45, 50, 55, 59, 64];
+                const notesToPlay = [];
+                
+                shape.frets.forEach((f, idx) => {{
+                    if (f !== null && f !== 'x') {{
+                        notesToPlay.push(baseMidi[idx] + f);
+                    }}
+                }});
+
+                const strumDelay = 0.08; // Slower arpeggiation (dedilhado)
+
+                if (guitarPlayer && audioCtx) {{
+                    const now = audioCtx.currentTime;
+                    notesToPlay.forEach((midi, i) => {{
+                        guitarPlayer.play(midi, now + (i * strumDelay), {{ duration: 2.0, gain: 0.85 }});
+                    }});
+                }} else {{
+                    const ctx = audioCtx || new AudioContext();
+                    const now = ctx.currentTime;
+                    notesToPlay.forEach((midi, i) => {{
+                        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                        const startTime = now + (i * strumDelay);
+                        
+                        const osc = ctx.createOscillator();
+                        const subOsc = ctx.createOscillator();
+                        const filter = ctx.createBiquadFilter();
+                        const gainNode = ctx.createGain();
+                        
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, startTime);
+                        subOsc.type = 'sine';
+                        subOsc.frequency.setValueAtTime(freq, startTime);
+                        
+                        filter.type = 'lowpass';
+                        filter.Q.setValueAtTime(1, startTime);
+                        filter.frequency.setValueAtTime(2500, startTime);
+                        filter.frequency.exponentialRampToValueAtTime(140, startTime + 0.18);
+                        
+                        gainNode.gain.setValueAtTime(0, startTime);
+                        gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
+                        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 2.0);
+                        
+                        osc.connect(filter);
+                        subOsc.connect(filter);
+                        filter.connect(gainNode);
+                        gainNode.connect(ctx.destination);
+                        
+                        osc.start(startTime);
+                        subOsc.start(startTime);
+                        
+                        osc.stop(startTime + 2.1);
+                        subOsc.stop(startTime + 2.1);
+                    }});
+                }}
+            }} catch(e) {{
+                console.error(e);
+            }}
+        }};
+
         const chordRegex = /\\b([A-G](?:[#b])?(?:maj9|maj7|m7b5|m7|m|7sus4|7sus2|7#11|7b13|7#9|7b9|7#5|7b5|7|sus4|sus2|dim|aug|add9|m6|6|9|11|13|5)?(?:\/[A-G](?:[#b])?)?)\\b/g;
 
         document.querySelectorAll("pre.cifraBox").forEach((pre) => {{
@@ -1640,28 +1792,135 @@ def musica(slug, uid):
                     const span = document.createElement("span");
                     span.className = "chord";
                     span.textContent = match;
+                    span.dataset.originalChord = match;
+                    span.dataset.chord = match;
 
                     const diagram = document.createElement("div");
                     diagram.className = "chord-diagram";
 
-                    const jtabDiv = document.createElement("div");
-                    jtabDiv.className = "jtab";
-                    diagram.appendChild(jtabDiv);
                     span.appendChild(diagram);
 
                     let rendered = false;
+                    let currentIndex = 0;
+                    let shapes = null;
+
+                    span.resetDiagram = () => {{
+                        rendered = false;
+                        currentIndex = 0;
+                        shapes = null;
+                        if (diagram.style.display === "block") {{
+                            render();
+                        }}
+                    }};
+
+                    const render = () => {{
+                        if (!shapes) {{
+                            shapes = getChordShapes(span.dataset.chord);
+                        }}
+                        const currentShape = (shapes && shapes.length > 0) ? shapes[currentIndex] : null;
+                        
+                        let htmlContent = `<div style="background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.18); display:flex; flex-direction:column; width:150px;">`;
+                        
+                        htmlContent += `
+                        <div class="chord-header" style="display:flex; justify-content:space-between; align-items:center; padding: 6px 12px; border-bottom: 1px solid #e5e7eb; background:#fafafa; pointer-events: auto;">
+                            <span style="font-size:13px; font-weight:bold; color:#1f2937; font-family:Arial, sans-serif;">${{span.dataset.chord}}</span>
+                            <button class="play-chord-btn" style="border:none; background:none; cursor:pointer; padding:2px; display:flex; align-items:center; outline:none;" title="Ouvir acorde">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff7a00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        `;
+                        
+                        htmlContent += drawChordSVG(span.dataset.chord, currentShape);
+
+                        if (shapes && shapes.length > 1) {{
+                            htmlContent += `
+                            <div class="chord-paginator" style="display:flex; justify-content:space-between; align-items:center; padding: 6px 12px; background:#fafafa; border-top:1px solid #e5e7eb; pointer-events: auto;">
+                                <button class="prev-var-btn" style="border:none; background:none; cursor:pointer; font-weight:bold; color:#ff7a00; font-size:15px; padding:2px 8px; transition:0.2s; outline:none;">&larr;</button>
+                                <span style="font-size:11px; color:#6b7280; font-family:Arial, sans-serif; font-weight:bold;">Posição ${{currentIndex + 1}}/${{shapes.length}}</span>
+                                <button class="next-var-btn" style="border:none; background:none; cursor:pointer; font-weight:bold; color:#ff7a00; font-size:15px; padding:2px 8px; transition:0.2s; outline:none;">&rarr;</button>
+                            </div>
+                            `;
+                        }}
+                        htmlContent += `</div>`;
+                        diagram.innerHTML = htmlContent;
+
+                        if (currentShape) {{
+                            const playBtn = diagram.querySelector(".play-chord-btn");
+                            playBtn.addEventListener("click", (e) => {{
+                                e.stopPropagation();
+                                e.preventDefault();
+                                playChordSound(currentShape);
+                            }});
+                        }}
+
+                        if (shapes && shapes.length > 1) {{
+                            const prevBtn = diagram.querySelector(".prev-var-btn");
+                            const nextBtn = diagram.querySelector(".next-var-btn");
+                            
+                            prevBtn.addEventListener("click", (e) => {{
+                                e.stopPropagation();
+                                e.preventDefault();
+                                currentIndex = (currentIndex - 1 + shapes.length) % shapes.length;
+                                render();
+                            }});
+
+                            nextBtn.addEventListener("click", (e) => {{
+                                e.stopPropagation();
+                                e.preventDefault();
+                                currentIndex = (currentIndex + 1) % shapes.length;
+                                render();
+                            }});
+                        }}
+                        
+                        diagram.addEventListener("click", (e) => {{
+                            e.stopPropagation();
+                            e.preventDefault();
+                        }});
+                    }};
+
+                    let hideTimeout = null;
+
                     span.addEventListener("mouseenter", () => {{
+                        if (hideTimeout) {{
+                            clearTimeout(hideTimeout);
+                            hideTimeout = null;
+                        }}
+                        const rect = span.getBoundingClientRect();
+                        diagram.style.left = (rect.left + rect.width / 2) + "px";
+                        if (rect.top > 240) {{
+                            diagram.style.bottom = (window.innerHeight - rect.top + 8) + "px";
+                            diagram.style.top = "auto";
+                        }} else {{
+                            diagram.style.top = (rect.bottom + 8) + "px";
+                            diagram.style.bottom = "auto";
+                        }}
                         diagram.style.display = "block";
-                        if (!rendered && window.jtab && typeof window.jtab.render === "function") {{
-                            try {{
-                                window.jtab.render(jtabDiv, match);
-                                rendered = true;
-                            }} catch (_err) {{}}
+                        if (!rendered) {{
+                            render();
+                            rendered = true;
                         }}
                     }});
 
                     span.addEventListener("mouseleave", () => {{
-                        diagram.style.display = "none";
+                        hideTimeout = setTimeout(() => {{
+                            diagram.style.display = "none";
+                        }}, 150);
+                    }});
+
+                    diagram.addEventListener("mouseenter", () => {{
+                        if (hideTimeout) {{
+                            clearTimeout(hideTimeout);
+                            hideTimeout = null;
+                        }}
+                    }});
+
+                    diagram.addEventListener("mouseleave", () => {{
+                        hideTimeout = setTimeout(() => {{
+                            diagram.style.display = "none";
+                        }}, 150);
                     }});
 
                     frag.appendChild(span);
@@ -1673,6 +1932,108 @@ def musica(slug, uid):
                 textNode.parentNode.replaceChild(frag, textNode);
             }});
         }});
+
+        const buildAsideDictionary = () => {{
+            const container = document.getElementById("asideChordDictionary");
+            if (!container) return;
+            container.innerHTML = "";
+
+            const uniqueChords = new Set();
+            document.querySelectorAll("pre.cifraBox .chord").forEach(span => {{
+                const chordName = span.dataset.chord;
+                if (chordName) {{
+                    let isTuning = false;
+                    let prev = span.previousSibling;
+                    let lineText = "";
+                    while (prev) {{
+                        if (prev.nodeType === Node.TEXT_NODE) {{
+                            const text = prev.nodeValue;
+                            if (text.includes('\\n')) {{
+                                lineText = text.substring(text.lastIndexOf('\\n') + 1) + lineText;
+                                break;
+                            }} else {{
+                                lineText = text + lineText;
+                            }}
+                        }} else if (prev.classList && prev.classList.contains("chord")) {{
+                            lineText = prev.innerText + lineText;
+                        }}
+                        prev = prev.previousSibling;
+                    }}
+                    if (lineText.toLowerCase().includes("afina") || lineText.toLowerCase().includes("tuning")) {{
+                        isTuning = true;
+                    }}
+                    if (!isTuning) {{
+                        uniqueChords.add(chordName);
+                    }}
+                }}
+            }});
+
+            if (uniqueChords.size === 0) return;
+
+            const card = document.createElement("div");
+            card.className = "controlCard";
+            card.innerHTML = `
+                <div class="controlTitle" style="margin-bottom:12px;">🎸 Acordes da Música</div>
+                <div id="asideChordsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px;"></div>
+            `;
+            container.appendChild(card);
+
+            const grid = card.querySelector("#asideChordsGrid");
+
+            uniqueChords.forEach(chordName => {{
+                const shapes = getChordShapes(chordName);
+                const firstShape = (shapes && shapes.length > 0) ? shapes[0] : null;
+
+                const chordBox = document.createElement("div");
+                chordBox.style.cssText = "background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; text-align: center;";
+                
+                chordBox.addEventListener("mouseenter", () => {{
+                    chordBox.style.transform = "scale(1.05)";
+                    chordBox.style.boxShadow = "0 4px 8px rgba(0,0,0,0.06)";
+                    chordBox.style.borderColor = "#ff7a00";
+                }});
+                chordBox.addEventListener("mouseleave", () => {{
+                    chordBox.style.transform = "scale(1)";
+                    chordBox.style.boxShadow = "none";
+                    chordBox.style.borderColor = "#e5e7eb";
+                }});
+
+                chordBox.addEventListener("click", () => {{
+                    if (firstShape) {{
+                        playChordSound(firstShape);
+                        chordBox.style.backgroundColor = "#ffebe0";
+                        setTimeout(() => {{
+                            chordBox.style.backgroundColor = "#fafafa";
+                        }}, 200);
+                    }}
+                }});
+
+                const titleSpan = document.createElement("span");
+                titleSpan.style.cssText = "font-size: 11px; font-weight: bold; color: #1f2937; font-family: Arial, sans-serif; margin-bottom: 2px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;";
+                titleSpan.textContent = chordName;
+                chordBox.appendChild(titleSpan);
+
+                const miniSvgContainer = document.createElement("div");
+                miniSvgContainer.style.width = "55px";
+                miniSvgContainer.style.height = "70px";
+                miniSvgContainer.innerHTML = drawChordSVG(chordName, firstShape);
+                
+                const svgEl = miniSvgContainer.querySelector("svg");
+                if (svgEl) {{
+                    svgEl.setAttribute("width", "100%");
+                    svgEl.setAttribute("height", "100%");
+                }}
+
+                chordBox.appendChild(miniSvgContainer);
+                grid.appendChild(chordBox);
+            }});
+        }};
+
+        // Build it initially
+        buildAsideDictionary();
+
+        // Expose it globally so the transposition function can call it
+        window.buildAsideDictionary = buildAsideDictionary;
     }});
     </script>
     <script>
@@ -1694,7 +2055,7 @@ def musica(slug, uid):
             if (!lastScrollTs) lastScrollTs = ts;
             const delta = Math.min(48, ts - lastScrollTs);
             lastScrollTs = ts;
-            window.scrollBy(0, scrollSpeed * delta / 12);
+            window.scrollBy(0, scrollSpeed * delta / 45);
 
             const chegouFim = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8;
             if (chegouFim) {{
@@ -1720,25 +2081,183 @@ def musica(slug, uid):
         }}
 
         function changeSpeed(delta){{
-            scrollSpeed = Math.max(0.2, Math.min(4, scrollSpeed + delta));
+            scrollSpeed = Math.max(0.1, Math.min(4, scrollSpeed + delta));
             document.getElementById("speedLabel").innerText = scrollSpeed.toFixed(1) + "x";
         }}
 
         // =============================
-        // TRANSPOSICAO VIA URL
+        // TRANSPOSICAO VIA JAVASCRIPT
         // =============================
-        function transpor(v){{
-            const url = new URL(window.location.href);
-            const t = parseInt(url.searchParams.get("t") || "0");
-            url.searchParams.set("t", t + v);
-            window.location.href = url.toString();
+        const MAP_TO_INDEX = {{
+            "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11
+        }};
+        const NOTAS_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const NOTAS_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+
+        function transporNotaJS(nota, semitons) {{
+            if (!nota) return "";
+            if (MAP_TO_INDEX[nota] === undefined) return nota;
+            let idx = MAP_TO_INDEX[nota];
+            let newIdx = (idx + semitons) % 12;
+            if (newIdx < 0) newIdx += 12;
+            if (nota.includes("b") || [1, 3, 8, 10].includes(newIdx)) {{
+                return NOTAS_FLAT[newIdx];
+            }}
+            return NOTAS_SHARP[newIdx];
         }}
 
-        function resetTransposicao(){{
-            const url = new URL(window.location.href);
-            url.searchParams.delete("t");
-            window.location.href = url.toString();
+        function transporAcordeJS(chord, semitons) {{
+            const m = chord.match(/^([A-G][#b]?)([^/]*)(?:\/([A-G][#b]?))?$/);
+            if (!m) return chord;
+            const root = m[1];
+            const mod = m[2] || "";
+            const slash = m[3];
+
+            const newRoot = transporNotaJS(root, semitons);
+            const newSlash = slash ? transporNotaJS(slash, semitons) : "";
+
+            if (newSlash) {{
+                return `${{newRoot}}${{mod}}/${{newSlash}}`;
+            }}
+            return `${{newRoot}}${{mod}}`;
         }}
+
+        let currentSemitones = 0;
+
+        function aplicarTransposicao(semitons) {{
+            currentSemitones = semitons;
+            
+            // Update chord spans
+            document.querySelectorAll(".chord").forEach(span => {{
+                const orig = span.dataset.originalChord;
+                if (!orig) return;
+                const newChord = transporAcordeJS(orig, semitons);
+                span.dataset.chord = newChord;
+                span.firstChild.nodeValue = newChord;
+                if (typeof span.resetDiagram === "function") {{
+                    span.resetDiagram();
+                }}
+            }});
+
+            // Update Key Labels (sidebar and meta)
+            const keyLabel = document.getElementById("currentKeyLabel");
+            if (keyLabel) {{
+                const origKey = keyLabel.dataset.originalKey;
+                if (origKey && origKey !== "—") {{
+                    keyLabel.innerText = transporAcordeJS(origKey, semitons);
+                }}
+            }}
+            const keyMeta = document.getElementById("currentKeyMeta");
+            if (keyMeta) {{
+                const origKey = keyMeta.dataset.originalKey;
+                if (origKey && origKey !== "—") {{
+                    keyMeta.innerText = transporAcordeJS(origKey, semitons);
+                }}
+            }}
+
+            // Update Transpose UI label
+            const label = document.getElementById("transposeLabel");
+            if (label) {{
+                label.innerText = (semitons >= 0 ? "+" : "") + semitons + " semitons";
+            }}
+
+            if (typeof buildAsideDictionary === "function") {{
+                buildAsideDictionary();
+            }}
+        }}
+
+        function transpor(v) {{
+            const nextSemitones = currentSemitones + v;
+            window.location.hash = "t=" + nextSemitones;
+            aplicarTransposicao(nextSemitones);
+        }}
+
+        function resetTransposicao() {{
+            window.location.hash = "t=0";
+            aplicarTransposicao(0);
+        }}
+
+        window.isLeftHanded = localStorage.getItem("isLeftHanded") === "true";
+
+        function toggleLeftHanded() {{
+            window.isLeftHanded = !window.isLeftHanded;
+            localStorage.setItem("isLeftHanded", window.isLeftHanded);
+            const btn = document.getElementById("leftHandedToggleBtn");
+            if (btn) {{
+                btn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
+                btn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+            }}
+            if (typeof buildAsideDictionary === 'function') {{
+                buildAsideDictionary();
+            }}
+        }}
+
+        // Apply transposition on load based on hash/search
+        document.addEventListener("DOMContentLoaded", () => {{
+            const leftHandedBtn = document.getElementById("leftHandedToggleBtn");
+            if (leftHandedBtn) {{
+                leftHandedBtn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
+                leftHandedBtn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+            }}
+            // If the song doesn't have a defined key, grab the first chord on the page and use it
+            const keyLabel = document.getElementById("currentKeyLabel");
+            const keyMeta = document.getElementById("currentKeyMeta");
+            if (keyLabel && (!keyLabel.dataset.originalKey || keyLabel.dataset.originalKey === "—" || keyLabel.dataset.originalKey.trim() === "")) {{
+                const chords = document.querySelectorAll("pre.cifraBox .chord");
+                let firstChord = null;
+                for (let span of chords) {{
+                    if (span.dataset.originalChord) {{
+                        let isTuning = false;
+                        let prev = span.previousSibling;
+                        let lineText = "";
+                        while (prev) {{
+                            if (prev.nodeType === Node.TEXT_NODE) {{
+                                const text = prev.nodeValue;
+                                if (text.includes('\\n')) {{
+                                    lineText = text.substring(text.lastIndexOf('\\n') + 1) + lineText;
+                                    break;
+                                }} else {{
+                                    lineText = text + lineText;
+                                }}
+                            }} else if (prev.classList && prev.classList.contains("chord")) {{
+                                lineText = prev.innerText + lineText;
+                            }}
+                            prev = prev.previousSibling;
+                        }}
+                        if (lineText.toLowerCase().includes("afina") || lineText.toLowerCase().includes("tuning")) {{
+                            isTuning = true;
+                        }}
+                        if (isTuning) continue;
+
+                        firstChord = span.dataset.originalChord;
+                        break;
+                    }}
+                }}
+                if (firstChord) {{
+                    keyLabel.dataset.originalKey = firstChord;
+                    if (keyMeta) {{
+                        keyMeta.dataset.originalKey = firstChord;
+                    }}
+                    keyLabel.innerText = firstChord;
+                    if (keyMeta) {{
+                        keyMeta.innerText = firstChord;
+                    }}
+                }}
+            }}
+
+            let initialT = 0;
+            const hash = window.location.hash;
+            const match = hash.match(/t=(-?\d+)/);
+            if (match) {{
+                initialT = parseInt(match[1]);
+            }} else {{
+                const urlParams = new URLSearchParams(window.location.search);
+                initialT = parseInt(urlParams.get("t") || "0");
+            }}
+            if (initialT !== 0) {{
+                aplicarTransposicao(initialT);
+            }}
+        }});
 
         document.addEventListener("keydown", (event) => {{
             if (event.code === "Space" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {{
@@ -1807,3 +2326,1371 @@ def buscar_video_youtube(artista, musica, indice=5):
         return f"https://www.youtube.com/watch?v={video_id}"
 
     return None
+
+
+@main_bp.route("/dicionario")
+def dicionario_page():
+    from modules.layout import header
+    html = header("Dicionário de Acordes")
+    html += """
+    <style>
+        .dictContainer {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .dictHeader {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .dictHeader h1 {
+            font-size: 32px;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+        .dictHeader p {
+            font-size: 16px;
+            color: #6b7280;
+        }
+        .rootsPanel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .rootBtn {
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            font-weight: 700;
+            color: #1f2937;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .rootBtn:hover, .rootBtn.active {
+            background: #ff7a00;
+            color: #ffffff;
+            border-color: #ff7a00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 122, 0, 0.2);
+        }
+        .chordGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chordCard {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .chordCard:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border-color: #ff7a00;
+        }
+        .chordCardName {
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+        .chordSvgContainer {
+            width: 120px;
+            height: 120px;
+        }
+        #chordSearch:focus {
+            border-color: #ff7a00;
+            box-shadow: 0 4px 14px rgba(255, 122, 0, 0.15);
+        }
+    </style>
+
+    <div class="dictContainer">
+        <div class="dictHeader">
+            <h1>🎸 Dicionário de Acordes</h1>
+            <p>Selecione uma nota fundamental ou digite o nome de um acorde para visualizar e ouvir os desenhos.</p>
+        </div>
+
+        <div class="searchWrapper" style="max-width: 500px; margin: 0 auto 30px auto; position: relative; display: flex; gap: 10px;">
+            <input type="text" id="chordSearch" placeholder="Busque por um acorde (ex: C, F#m7, Bb...)" 
+                   style="flex: 1; padding: 14px 20px; font-size: 16px; border-radius: 14px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.02); outline: none; transition: all 0.2s;" />
+            <button id="leftHandedToggleBtn" onclick="toggleLeftHanded()" 
+                    style="padding: 0 20px; font-size: 14px; font-weight: 700; border-radius: 14px; border: none; background: #374151; color: #fff; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                Modo Canhoto: Desativado
+            </button>
+        </div>
+
+        <div class="rootsPanel">
+            <button class="rootBtn active" onclick="selectRoot('C')">C</button>
+            <button class="rootBtn" onclick="selectRoot('C#')">C# / Db</button>
+            <button class="rootBtn" onclick="selectRoot('D')">D</button>
+            <button class="rootBtn" onclick="selectRoot('D#')">D# / Eb</button>
+            <button class="rootBtn" onclick="selectRoot('E')">E</button>
+            <button class="rootBtn" onclick="selectRoot('F')">F</button>
+            <button class="rootBtn" onclick="selectRoot('F#')">F# / Gb</button>
+            <button class="rootBtn" onclick="selectRoot('G')">G</button>
+            <button class="rootBtn" onclick="selectRoot('G#')">G# / Ab</button>
+            <button class="rootBtn" onclick="selectRoot('A')">A</button>
+            <button class="rootBtn" onclick="selectRoot('A#')">A# / Bb</button>
+            <button class="rootBtn" onclick="selectRoot('B')">B</button>
+            <button class="rootBtn" onclick="selectRoot('Todos')">Todos</button>
+        </div>
+
+        <div id="dictionaryGrid" class="chordGrid"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+    <script src="/static/js/chords_db_v2.js?v=2.0"></script>
+    <script>
+        let guitarPlayer = null;
+        let audioCtx = null;
+
+        window.isLeftHanded = localStorage.getItem("isLeftHanded") === "true";
+
+        function toggleLeftHanded() {
+            window.isLeftHanded = !window.isLeftHanded;
+            localStorage.setItem("isLeftHanded", window.isLeftHanded);
+            const btn = document.getElementById("leftHandedToggleBtn");
+            if (btn) {
+                btn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
+                btn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+            }
+            // Trigger redrawing of the dictionary or search results
+            const searchInput = document.getElementById("chordSearch");
+            if (searchInput && searchInput.value.trim() !== "") {
+                renderSearchResults(searchInput.value.trim());
+            } else {
+                renderDictionary();
+            }
+        }
+
+        function initSoundfont() {
+            if (audioCtx) return;
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+                const preset = localStorage.getItem("defaultPreset") || "acoustic_guitar_nylon";
+                Soundfont.instrument(audioCtx, preset).then(function (inst) {
+                    guitarPlayer = inst;
+                }).catch(e => console.log("SoundFont failed, using synth", e));
+            } catch(e) {
+                console.log("Audio not supported", e);
+            }
+        }
+        document.addEventListener("mouseenter", initSoundfont, { once: true });
+        document.addEventListener("click", initSoundfont, { once: true });
+
+        const playChordSound = (shape) => {
+            if (!shape) return;
+            try {
+                if (!audioCtx) initSoundfont();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const baseMidi = [40, 45, 50, 55, 59, 64];
+                const notesToPlay = [];
+                shape.frets.forEach((f, idx) => {
+                    if (f !== null && f !== 'x') {
+                        notesToPlay.push(baseMidi[idx] + f);
+                    }
+                });
+
+                const strumDelay = 0.08;
+                if (guitarPlayer && audioCtx) {
+                    const now = audioCtx.currentTime;
+                    notesToPlay.forEach((midi, i) => {
+                        guitarPlayer.play(midi, now + (i * strumDelay), { duration: 2.0, gain: 0.85 });
+                    });
+                } else {
+                    const ctx = audioCtx || new AudioContext();
+                    const now = ctx.currentTime;
+                    notesToPlay.forEach((midi, i) => {
+                        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                        const startTime = now + (i * strumDelay);
+                        const osc = ctx.createOscillator();
+                        const subOsc = ctx.createOscillator();
+                        const filter = ctx.createBiquadFilter();
+                        const gainNode = ctx.createGain();
+                        
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, startTime);
+                        subOsc.type = 'sine';
+                        subOsc.frequency.setValueAtTime(freq, startTime);
+                        
+                        filter.type = 'lowpass';
+                        filter.Q.setValueAtTime(1, startTime);
+                        filter.frequency.setValueAtTime(2500, startTime);
+                        filter.frequency.exponentialRampToValueAtTime(140, startTime + 0.18);
+                        
+                        gainNode.gain.setValueAtTime(0, startTime);
+                        gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
+                        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 2.0);
+                        
+                        osc.connect(filter);
+                        subOsc.connect(filter);
+                        filter.connect(gainNode);
+                        gainNode.connect(ctx.destination);
+                        
+                        osc.start(startTime);
+                        subOsc.start(startTime);
+                        osc.stop(startTime + 2.1);
+                        subOsc.stop(startTime + 2.1);
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        };
+
+        let currentRoot = 'C';
+
+        function selectRoot(note) {
+            document.getElementById("chordSearch").value = "";
+            document.querySelectorAll('.rootBtn').forEach(btn => {
+                if (btn.innerText.startsWith(note)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            currentRoot = note;
+            renderDictionary();
+        }
+
+        function renderDictionary() {
+            const grid = document.getElementById("dictionaryGrid");
+            grid.innerHTML = "";
+
+            if (currentRoot === 'Todos') {
+                Object.keys(chordShapes).forEach(chordName => {
+                    const shapes = chordShapes[chordName];
+                    if (shapes && shapes.length > 0) {
+                        shapes.forEach((shape, index) => {
+                            const card = document.createElement("div");
+                            card.className = "chordCard";
+                            
+                            card.innerHTML = `
+                                <div class="chordCardName">${chordName} <span style="font-size:11px; color:#6b7280; font-weight:normal;">(Pos. ${index + 1})</span></div>
+                                <div class="chordSvgContainer"></div>
+                            `;
+                            
+                            const svgContainer = card.querySelector(".chordSvgContainer");
+                            svgContainer.innerHTML = drawChordSVG(chordName, shape);
+                            
+                            const svgEl = svgContainer.querySelector("svg");
+                            if (svgEl) {
+                                svgEl.setAttribute("width", "100%");
+                                svgEl.setAttribute("height", "100%");
+                            }
+
+                            card.addEventListener("click", () => {
+                                playChordSound(shape);
+                                card.style.backgroundColor = "#ffebe0";
+                                setTimeout(() => {
+                                    card.style.backgroundColor = "#ffffff";
+                                }, 200);
+                            });
+
+                            grid.appendChild(card);
+                        });
+                    }
+                });
+                return;
+            }
+
+            const suffixes = ["", "m", "7", "maj7", "9", "sus4", "5"];
+            
+            let notesToQuery = [currentRoot];
+            if (currentRoot === 'C#') notesToQuery.push('Db');
+            if (currentRoot === 'D#') notesToQuery.push('Eb');
+            if (currentRoot === 'F#') notesToQuery.push('Gb');
+            if (currentRoot === 'G#') notesToQuery.push('Ab');
+            if (currentRoot === 'A#') notesToQuery.push('Bb');
+
+            notesToQuery.forEach(root => {
+                suffixes.forEach(suffix => {
+                    const chordName = root + suffix;
+                    const shapes = getChordShapes(chordName);
+                    if (shapes && shapes.length > 0) {
+                        shapes.forEach((shape, index) => {
+                            const card = document.createElement("div");
+                            card.className = "chordCard";
+                            
+                            card.innerHTML = `
+                                <div class="chordCardName">${chordName} <span style="font-size:11px; color:#6b7280; font-weight:normal;">(Pos. ${index + 1})</span></div>
+                                <div class="chordSvgContainer"></div>
+                            `;
+                            
+                            const svgContainer = card.querySelector(".chordSvgContainer");
+                            svgContainer.innerHTML = drawChordSVG(chordName, shape);
+                            
+                            const svgEl = svgContainer.querySelector("svg");
+                            if (svgEl) {
+                                svgEl.setAttribute("width", "100%");
+                                svgEl.setAttribute("height", "100%");
+                            }
+
+                            card.addEventListener("click", () => {
+                                playChordSound(shape);
+                                card.style.backgroundColor = "#ffebe0";
+                                setTimeout(() => {
+                                    card.style.backgroundColor = "#ffffff";
+                                }, 200);
+                            });
+
+                            grid.appendChild(card);
+                        });
+                    }
+                });
+            });
+        }
+
+        function renderSearchResults(query) {
+            const grid = document.getElementById("dictionaryGrid");
+            grid.innerHTML = "";
+
+            document.querySelectorAll('.rootBtn').forEach(btn => btn.classList.remove('active'));
+
+            const queryLower = query.toLowerCase();
+            const matchingKeys = Object.keys(chordShapes).filter(key => 
+                key.toLowerCase().includes(queryLower)
+            );
+
+            matchingKeys.sort((a, b) => {
+                const aLower = a.toLowerCase();
+                const bLower = b.toLowerCase();
+                if (aLower === queryLower) return -1;
+                if (bLower === queryLower) return 1;
+                if (aLower.startsWith(queryLower) && !bLower.startsWith(queryLower)) return -1;
+                if (!aLower.startsWith(queryLower) && bLower.startsWith(queryLower)) return 1;
+                return a.localeCompare(b);
+            });
+
+            if (matchingKeys.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #9ca3af; font-size: 16px; font-weight: bold;">
+                        Nenhum acorde encontrado para "${query}"
+                    </div>
+                `;
+                return;
+            }
+
+            matchingKeys.forEach(chordName => {
+                const shapes = chordShapes[chordName];
+                if (shapes && shapes.length > 0) {
+                    shapes.forEach((shape, index) => {
+                        const card = document.createElement("div");
+                        card.className = "chordCard";
+                        
+                        card.innerHTML = `
+                            <div class="chordCardName">${chordName} <span style="font-size:11px; color:#6b7280; font-weight:normal;">(Pos. ${index + 1})</span></div>
+                            <div class="chordSvgContainer"></div>
+                        `;
+                        
+                        const svgContainer = card.querySelector(".chordSvgContainer");
+                        svgContainer.innerHTML = drawChordSVG(chordName, shape);
+                        
+                        const svgEl = svgContainer.querySelector("svg");
+                        if (svgEl) {
+                            svgEl.setAttribute("width", "100%");
+                            svgEl.setAttribute("height", "100%");
+                        }
+
+                        card.addEventListener("click", () => {
+                            playChordSound(shape);
+                            card.style.backgroundColor = "#ffebe0";
+                            setTimeout(() => {
+                                card.style.backgroundColor = "#ffffff";
+                            }, 200);
+                        });
+
+                        grid.appendChild(card);
+                    });
+                }
+            });
+        }
+
+         document.addEventListener("DOMContentLoaded", () => {
+            const btn = document.getElementById("leftHandedToggleBtn");
+            if (btn) {
+                btn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
+                btn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+            }
+            renderDictionary();
+
+            const searchInput = document.getElementById("chordSearch");
+            searchInput.addEventListener("input", (e) => {
+                const query = e.target.value.trim();
+                if (query === "") {
+                    selectRoot('C');
+                } else {
+                    renderSearchResults(query);
+                }
+            });
+        });
+    </script>
+    """
+    return html
+
+
+# ==========================================
+# PAINEL DE CONTROLE DO USUÁRIO
+# ==========================================
+import uuid
+
+@main_bp.route("/login", methods=["GET", "POST"])
+def login_route():
+    erro = None
+    if request.method == "POST":
+        user = request.form.get("username")
+        senha = request.form.get("password")
+        if user == "adm" and senha == "adm":
+            session["user"] = "adm"
+            return redirect(url_for("main.painel_route"))
+        else:
+            erro = "Credenciais inválidas. Tente 'adm' e 'adm'."
+            
+    html = header("CifrasFlix - Login")
+    html += f"""
+    <div style="max-width: 400px; margin: 80px auto; padding: 40px; background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; font-family: 'Inter', sans-serif;">
+        <h2 style="font-weight: 800; font-size: 28px; color: #111827; margin-bottom: 8px;">Entrar no CifrasFlix</h2>
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 30px;">Acesse seu painel com a conta temporária</p>
+        
+        {f'<div style="background: #fee2e2; color: #ef4444; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 20px; text-align: left;">{erro}</div>' if erro else ''}
+        
+        <form method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="text-align: left;">
+                <label style="font-size: 13px; font-weight: bold; color: #374151; display: block; margin-bottom: 6px;">Usuário</label>
+                <input type="text" name="username" placeholder="adm" required style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 15px; outline: none; transition: border 0.2s;" />
+            </div>
+            <div style="text-align: left;">
+                <label style="font-size: 13px; font-weight: bold; color: #374151; display: block; margin-bottom: 6px;">Senha</label>
+                <input type="password" name="password" placeholder="adm" required style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 15px; outline: none; transition: border 0.2s;" />
+            </div>
+            <button type="submit" style="width: 100%; padding: 14px; margin-top: 10px; background: #ff7a00; color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(255,122,0,0.2);">Acessar Painel</button>
+        </form>
+    </div>
+    """
+    return html
+
+@main_bp.route("/logout")
+def logout_route():
+    session.pop("user", None)
+    return redirect(url_for("main.home"))
+
+@main_bp.route("/painel")
+def painel_route():
+    if session.get("user") != "adm":
+        return redirect(url_for("main.login_route"))
+        
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("""
+        SELECT m.id, m.titulo, m.slug, a.nome, a.slug, m.tom, m.uid
+        FROM favoritos f
+        JOIN musicas m ON f.musica_id = m.id
+        JOIN artistas a ON m.artista_id = a.id
+        ORDER BY m.titulo
+    """)
+    favoritos = c.fetchall()
+    
+    c.execute("""
+        SELECT p.id, p.nome, p.publica, p.likes, COUNT(pm.musica_id)
+        FROM playlists p
+        LEFT JOIN playlist_musicas pm ON p.id = pm.playlist_id
+        GROUP BY p.id
+        ORDER BY p.id DESC
+    """)
+    playlists = c.fetchall()
+    conn.close()
+    
+    sucesso = request.args.get("sucesso")
+    
+    html = header("CifrasFlix - Painel de Controle")
+    
+    # Render layout
+    html += f"""
+    <style>
+        .panelWrapper {{
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            font-family: 'Inter', sans-serif;
+        }}
+        .panelHeader {{
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .panelGrid {{
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }}
+        @media(max-width: 768px) {{
+            .panelGrid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+        .panelCard {{
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            margin-bottom: 30px;
+        }}
+        .cardTitle {{
+            font-weight: 800;
+            font-size: 20px;
+            color: #111827;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .favItem {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #f3f4f6;
+            transition: all 0.2s;
+        }}
+        .favItem:hover {{
+            background: #f3f4f6;
+            transform: translateX(4px);
+        }}
+        .favInfo a {{
+            text-decoration: none;
+            color: #111827;
+            font-weight: 700;
+        }}
+        .favInfo span {{
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: 8px;
+        }}
+        .formGroup {{
+            margin-bottom: 16px;
+            text-align: left;
+        }}
+        .formGroup label {{
+            font-size: 13px;
+            font-weight: bold;
+            color: #374151;
+            display: block;
+            margin-bottom: 6px;
+        }}
+        .formGroup input, .formGroup textarea, .formGroup select {{
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+            box-sizing: border-box;
+        }}
+        .formGroup input:focus, .formGroup textarea:focus {{
+            border-color: #ff7a00;
+        }}
+        .formRow {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }}
+        .toggleBtn {{
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #d1d5db;
+            background: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }}
+        .toggleBtn.active {{
+            border-color: #ff7a00;
+            background: #ffebe0;
+            color: #ff7a00;
+        }}
+    </style>
+    
+    <div class="panelWrapper">
+        <div class="panelHeader">
+            <div>
+                <p style="font-size:14px; color:#ff7a00; font-weight:700; text-transform:uppercase; margin:0 0 4px 0;">Painel do Usuário</p>
+                <h1 style="font-size:32px; font-weight:800; color:#111827; margin:0;">Olá, Administrador!</h1>
+            </div>
+            <a href="/logout" style="padding:10px 20px; background:#fee2e2; color:#ef4444; text-decoration:none; border-radius:10px; font-weight:bold; font-size:14px;">Sair da Conta</a>
+        </div>
+        
+        {f'<div style="background: #ecfdf5; color: #10b981; padding: 16px; border-radius: 14px; font-weight: bold; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(16,185,129,0.1);">Cifra enviada com sucesso e cadastrada no acervo!</div>' if sucesso else ''}
+
+        <div class="panelGrid">
+            <!-- Coluna Esquerda: Configurações -->
+            <div>
+                <div class="panelCard">
+                    <div class="cardTitle">⚙️ Configurações Gerais</div>
+                    
+                    <div class="formGroup">
+                        <label>Orientação da Mão</label>
+                        <div style="display:flex; gap:10px;">
+                            <button id="handDestro" class="toggleBtn" style="flex:1;" onclick="setHandPreference(false)">Destro</button>
+                            <button id="handCanhoto" class="toggleBtn" style="flex:1;" onclick="setHandPreference(true)">Canhoto</button>
+                        </div>
+                    </div>
+                    
+                    <div class="formGroup">
+                        <label>Timbre Padrão do Reprodutor</label>
+                        <select id="defaultPreset" onchange="setDefaultPreset(this.value)">
+                            <option value="acoustic_guitar_nylon">Violão de Nylon (Padrão)</option>
+                            <option value="acoustic_guitar_steel">Violão de Aço</option>
+                            <option value="electric_guitar_clean">Guitarra Limpa</option>
+                            <option value="acoustic_grand_piano">Piano Acústico</option>
+                        </select>
+                    </div>
+                    
+                    <div class="formGroup">
+                        <label>Velocidade Padrão de Autorolagem</label>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="range" id="defaultSpeed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateSpeedLabel(this.value)" onchange="setDefaultSpeed(this.value)" style="flex:1;" />
+                            <strong id="speedLabel" style="width:40px; text-align:right;">1.0x</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panelCard">
+                    <div class="cardTitle">📁 Minhas Playlists ({len(playlists)})</div>
+                    
+                    <form method="POST" action="/painel/playlist/criar" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+                        <input type="text" name="nome_playlist" placeholder="Nome da Playlist (ex: Ensaios)" required style="padding:10px; border-radius:8px; border:1px solid #d1d5db; width:100%; box-sizing:border-box;" />
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label style="font-size:13px; color:#4b5563; font-weight:700;">Tornar Pública</label>
+                            <input type="checkbox" name="publica" value="1" style="width:20px; height:20px;" />
+                        </div>
+                        <button type="submit" style="padding:10px; background:#ff7a00; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Criar Playlist</button>
+                    </form>
+                    
+                    <div class="playlistList" style="max-height: 250px; overflow-y: auto;">
+    """
+    
+    if playlists:
+        for pid, nome, publica, likes, total_musicas in playlists:
+            pub_label = "Pública" if publica else "Privada"
+            pub_color = "#10b981" if publica else "#9ca3af"
+            html += f"""
+            <div class="favItem" style="padding: 10px 12px; margin-bottom: 8px;">
+                <div class="favInfo">
+                    <a href="/playlists/{pid}" style="font-size:14px; font-weight:700; text-decoration:none; color:#111827;">{nome}</a>
+                    <span style="font-size:11px; color:#6b7280; margin-left:5px;">({total_musicas} músicas)</span>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span style="font-size:11px; font-weight:bold; color:{pub_color};">{pub_label}</span>
+                    <form method="POST" action="/painel/playlist/deletar/{pid}" style="margin:0;">
+                        <button type="submit" style="background:none; border:none; color:#ef4444; font-weight:bold; font-size:12px; cursor:pointer;">Excluir</button>
+                    </form>
+                </div>
+            </div>
+            """
+    else:
+        html += '<p style="color:#9ca3af; text-align:center; padding:10px; font-size:13px; font-weight:bold; margin:0;">Nenhuma playlist criada.</p>'
+        
+    html += f"""
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coluna Direita: Favoritos e Enviar Música -->
+            <div>
+                <div class="panelCard">
+                    <div class="cardTitle">⭐️ Minhas Cifras Favoritas ({len(favoritos)})</div>
+                    <div class="favList">
+    """
+    
+    if favoritos:
+        for fid, title, slug, artist_name, artist_slug, tom, suid in favoritos:
+            html += f"""
+            <div class="favItem">
+                <div class="favInfo">
+                    <a href="/artista/{artist_slug}/{suid}">{title}</a>
+                    <span>({artist_name})</span>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span style="background:#fff; border:1px solid #d1d5db; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:bold; color:#4b5563;">Tom: {tom or "N/D"}</span>
+                    <a href="/favoritar/{fid}" style="color:#ef4444; font-size:13px; font-weight:700; text-decoration:none;">Remover</a>
+                </div>
+            </div>
+            """
+    else:
+        html += '<p style="color:#9ca3af; text-align:center; padding:20px; font-weight:bold; margin:0;">Você ainda não favoritou nenhuma música.</p>'
+        
+    html += """
+                    </div>
+                </div>
+                
+                <div class="panelCard">
+                    <div class="cardTitle">➕ Enviar Nova Música</div>
+                    <form method="POST" action="/painel/enviar">
+                        <div class="formGroup">
+                            <label>Artista / Banda</label>
+                            <input type="text" name="artista" placeholder="Ex: Legião Urbana" required />
+                        </div>
+                        <div class="formGroup">
+                            <label>Título da Música</label>
+                            <input type="text" name="titulo" placeholder="Ex: Eduardo e Mônica" required />
+                        </div>
+                        
+                        <div class="formRow">
+                            <div class="formGroup">
+                                <label>Tom Inicial</label>
+                                <input type="text" name="tom" placeholder="Ex: C, G, Am..." required />
+                            </div>
+                            <div class="formGroup">
+                                <label>Capotraste</label>
+                                <input type="text" name="capotraste" placeholder="Ex: Sem capo, 2ª casa..." />
+                            </div>
+                        </div>
+                        
+                        <div class="formGroup">
+                            <label>Afinação</label>
+                            <input type="text" name="afinacao" placeholder="Ex: Padrão (E A D G B E)" value="Padrão (E A D G B E)" />
+                        </div>
+                        
+                        <div class="formGroup">
+                            <label>Conteúdo da Cifra (Letras & Acordes)</label>
+                            <textarea name="conteudo" rows="12" placeholder="Digite ou cole a cifra aqui... Coloque os acordes entre parênteses para renderização alinhada." required style="font-family: monospace; line-height: 1.5; font-size: 13px;"></textarea>
+                        </div>
+                        
+                        <button type="submit" style="width:100%; padding:14px; background:#ff7a00; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(255,122,0,0.2);">Cadastrar Cifra</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Settings Sync
+        document.addEventListener("DOMContentLoaded", () => {
+            // Hand preference
+            const isLeft = localStorage.getItem("isLeftHanded") === "true";
+            updateHandUI(isLeft);
+            
+            // Instrument preset
+            const preset = localStorage.getItem("defaultPreset") || "acoustic_guitar_nylon";
+            document.getElementById("defaultPreset").value = preset;
+            
+            // Speed
+            const speed = localStorage.getItem("defaultSpeed") || "1.0";
+            document.getElementById("defaultSpeed").value = speed;
+            document.getElementById("speedLabel").innerText = speed + "x";
+        });
+        
+        function updateHandUI(isLeft) {
+            document.getElementById("handDestro").className = isLeft ? "toggleBtn" : "toggleBtn active";
+            document.getElementById("handCanhoto").className = isLeft ? "toggleBtn active" : "toggleBtn";
+        }
+        
+        function setHandPreference(isLeft) {
+            localStorage.setItem("isLeftHanded", isLeft);
+            window.isLeftHanded = isLeft;
+            updateHandUI(isLeft);
+        }
+        
+        function setDefaultPreset(preset) {
+            localStorage.setItem("defaultPreset", preset);
+        }
+        
+        function updateSpeedLabel(val) {
+            document.getElementById("speedLabel").innerText = val + "x";
+        }
+        
+        function setDefaultSpeed(speed) {
+            localStorage.setItem("defaultSpeed", speed);
+        }
+    </script>
+    """
+    return html
+
+@main_bp.route("/painel/enviar", methods=["POST"])
+def enviar_musica_route():
+    if session.get("user") != "adm":
+        return redirect(url_for("main.login_route"))
+        
+    artista_nome = request.form.get("artista", "").strip()
+    titulo = request.form.get("titulo", "").strip()
+    tom = request.form.get("tom", "").strip()
+    capo = request.form.get("capotraste", "").strip() or "Sem capotraste"
+    afinacao = request.form.get("afinacao", "").strip() or "Padrão (E A D G B E)"
+    conteudo = request.form.get("conteudo", "").strip()
+    
+    if not artista_nome or not titulo or not conteudo:
+        return redirect(url_for("main.painel_route"))
+        
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    
+    # 1. Artista
+    artista_slug = slugify(artista_nome)
+    c.execute("SELECT id FROM artistas WHERE slug = ?", (artista_slug,))
+    row_art = c.fetchone()
+    if row_art:
+        artista_id = row_art[0]
+    else:
+        c.execute("INSERT INTO artistas (nome, slug) VALUES (?, ?)", (artista_nome, artista_slug))
+        artista_id = c.lastrowid
+        
+    # 2. Musica
+    song_uid = str(uuid.uuid4())[:8] # Generates 8-character uid
+    song_slug = slugify(titulo)
+    
+    c.execute("""
+        INSERT INTO musicas (titulo, slug, uid, artista_id, conteudo, tom, afinacao, capotraste)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (titulo, song_slug, song_uid, artista_id, conteudo, tom, afinacao, capo))
+    
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for("main.painel_route", sucesso=1))
+
+
+# ==========================================
+# PLAYLISTS / REPERTÓRIOS
+# ==========================================
+
+@main_bp.route("/painel/playlist/criar", methods=["POST"])
+def criar_playlist_route():
+    if session.get("user") != "adm":
+        return redirect(url_for("main.login_route"))
+        
+    nome = request.form.get("nome_playlist", "").strip()
+    publica = 1 if request.form.get("publica") else 0
+    
+    if not nome:
+        return redirect(url_for("main.painel_route"))
+        
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("INSERT INTO playlists (nome, publica) VALUES (?, ?)", (nome, publica))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("main.painel_route"))
+
+@main_bp.route("/painel/playlist/deletar/<int:pid>", methods=["POST"])
+def deletar_playlist_route(pid):
+    if session.get("user") != "adm":
+        return redirect(url_for("main.login_route"))
+        
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM playlists WHERE id = ?", (pid,))
+    c.execute("DELETE FROM playlist_musicas WHERE playlist_id = ?", (pid,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("main.painel_route"))
+
+@main_bp.route("/painel/playlist/adicionar", methods=["POST"])
+def adicionar_musica_playlist():
+    if session.get("user") != "adm":
+        return redirect(url_for("main.login_route"))
+        
+    pid = request.form.get("playlist_id")
+    mid = request.form.get("musica_id")
+    
+    if not pid or not mid:
+        return redirect(request.referrer or url_for("main.home"))
+        
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    
+    # Check if already added
+    c.execute("SELECT id FROM playlist_musicas WHERE playlist_id = ? AND musica_id = ?", (pid, mid))
+    if not c.fetchone():
+        c.execute("INSERT INTO playlist_musicas (playlist_id, musica_id) VALUES (?, ?)", (pid, mid))
+        conn.commit()
+        
+    conn.close()
+    return redirect(request.referrer or url_for("main.home"))
+
+@main_bp.route("/playlists")
+@main_bp.route("/listas")
+def playlists_gallery():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    
+    # 1. Load community public playlists
+    c.execute("""
+        SELECT p.id, p.nome, p.likes, COUNT(pm.musica_id)
+        FROM playlists p
+        LEFT JOIN playlist_musicas pm ON p.id = pm.playlist_id
+        WHERE p.publica = 1
+        GROUP BY p.id
+        ORDER BY p.likes DESC
+    """)
+    public_playlists = c.fetchall()
+    
+    # 2. Load my playlists (both public and private) if logged in
+    my_playlists = []
+    liked_songs = []
+    is_logged = session.get("user") == "adm"
+    if is_logged:
+        c.execute("""
+            SELECT p.id, p.nome, p.publica, p.likes, COUNT(pm.musica_id)
+            FROM playlists p
+            LEFT JOIN playlist_musicas pm ON p.id = pm.playlist_id
+            GROUP BY p.id
+            ORDER BY p.id DESC
+        """)
+        my_playlists = c.fetchall()
+        
+        c.execute("""
+            SELECT m.id, m.titulo, m.slug, a.nome, a.slug, m.tom, m.uid
+            FROM favoritos f
+            JOIN musicas m ON f.musica_id = m.id
+            JOIN artistas a ON m.artista_id = a.id
+            ORDER BY m.titulo
+        """)
+        liked_songs = c.fetchall()
+        
+    conn.close()
+    
+    html = header("CifrasFlix - Repertórios & Playlists")
+    
+    html += """
+    <style>
+        .playlistsWrapper {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            font-family: 'Inter', sans-serif;
+        }
+        .playlistsHero {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        .playlistsHero h1 {
+            font-size: 38px;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+        .playlistsHero p {
+            color: #6b7280;
+            font-size: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .sectionTitle {
+            font-size: 26px;
+            font-weight: 800;
+            color: #111827;
+            margin: 40px 0 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f3f4f6;
+            padding-bottom: 10px;
+        }
+        .playlistsGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .playlistCard {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #111827;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 180px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .playlistCard:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(255,122,0,0.08);
+            border-color: #ff7a00;
+        }
+        .playlistName {
+            font-size: 20px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+        }
+        .playlistMeta {
+            font-size: 13px;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .playlistFooter {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 15px;
+        }
+        .likeBtn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 14px;
+        }
+        .likeBtn:hover {
+            transform: scale(1.1);
+        }
+        .badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .pub { background: #ecfdf5; color: #10b981; }
+        .priv { background: #f3f4f6; color: #6b7280; }
+    </style>
+    
+    <div class="playlistsWrapper">
+        <div class="playlistsHero">
+            <p style="font-size:14px; color:#ff7a00; font-weight:700; text-transform:uppercase; margin-bottom:6px;">Repertórios & Playlists</p>
+            <h1>Playlists de Cifras</h1>
+            <p>Explore as seleções públicas da comunidade ou organize suas próprias listas de ensaios e apresentações.</p>
+        </div>
+    """
+    
+    # Render user playlists if logged in
+    if is_logged:
+        html += """
+        <div class="sectionTitle">
+            <span>📁 Minhas Listas</span>
+            <a href="/painel" style="font-size:14px; color:#ff7a00; text-decoration:none; font-weight:bold; background:#ffebe0; padding:6px 12px; border-radius:8px;">+ Nova Playlist</a>
+        </div>
+        <div class="playlistsGrid" style="margin-bottom: 50px;">
+        """
+        if my_playlists:
+            for pid, nome, publica, likes, total_musicas in my_playlists:
+                badge_class = "pub" if publica else "priv"
+                badge_label = "Pública" if publica else "Privada"
+                html += f"""
+                <div class="playlistCard">
+                    <span class="badge {badge_class}">{badge_label}</span>
+                    <a href="/playlists/{pid}" style="text-decoration:none; color:inherit; flex:1;">
+                        <h3 class="playlistName" style="padding-right: 60px;">{nome}</h3>
+                        <div class="playlistMeta">
+                            <span>📁 Reperório</span>
+                            <span>•</span>
+                            <span>{total_musicas} músicas</span>
+                        </div>
+                    </a>
+                    <div class="playlistFooter">
+                        <span style="font-size:13px; color:#ef4444; font-weight:bold;">❤️ {likes} curtidas</span>
+                        <a href="/playlists/{pid}" style="font-size:13px; font-weight:700; color:#ff7a00; text-decoration:none;">Abrir Playlist →</a>
+                    </div>
+                </div>
+                """
+        else:
+            html += """
+            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #9ca3af; background:rgba(255,255,255,0.4); border-radius:14px;">
+                <p style="font-size:15px; font-weight:bold; margin:0;">Você ainda não criou nenhuma playlist.</p>
+                <p style="font-size:13px; margin-top:5px;">Acesse seu Painel para criar sua primeira lista!</p>
+            </div>
+            """
+        html += "</div>"
+        
+        # Render liked songs
+        html += """
+        <div class="sectionTitle">
+            <span>❤️ Minhas Músicas Curtidas</span>
+        </div>
+        <div class="playlistsGrid" style="margin-bottom: 50px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+        """
+        if liked_songs:
+            for mid, title, slug, artist_name, artist_slug, tom, suid in liked_songs:
+                html += f"""
+                <div class="playlistCard" style="min-height: 100px; padding: 16px;">
+                    <a href="/artista/{artist_slug}/{suid}" style="text-decoration:none; color:inherit; display:block;">
+                        <h4 style="font-size:16px; font-weight:800; margin:0 0 4px 0;">{title}</h4>
+                        <div style="font-size:12px; color:#6b7280;">👤 {artist_name}</div>
+                    </a>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:11px; font-weight:bold;">
+                        <span style="color:#ff7a00; background:#ffebe0; padding:2px 6px; border-radius:4px;">Tom: {tom or "N/D"}</span>
+                        <a href="/favoritar/{mid}" style="color:#ef4444; text-decoration:none;">Descurtir</a>
+                    </div>
+                </div>
+                """
+        else:
+            html += """
+            <div style="grid-column: 1/-1; text-align: center; padding: 30px; color: #9ca3af; background:rgba(255,255,255,0.4); border-radius:14px;">
+                <p style="font-size:14px; font-weight:bold; margin:0;">Você ainda não curtiu nenhuma música.</p>
+                <p style="font-size:12px; margin-top:3px;">Clique no coração das cifras para que elas apareçam aqui!</p>
+            </div>
+            """
+        html += "</div>"
+        
+    # Render community playlists
+    html += """
+        <div class="sectionTitle">
+            <span>💖 Playlists da Comunidade</span>
+        </div>
+        <div class="playlistsGrid">
+    """
+    
+    if public_playlists:
+        for pid, nome, likes, total_musicas in public_playlists:
+            html += f"""
+            <div class="playlistCard">
+                <a href="/playlists/{pid}" style="text-decoration:none; color:inherit; flex:1;">
+                    <h3 class="playlistName">{nome}</h3>
+                    <div class="playlistMeta">
+                        <span>📁 Reperório</span>
+                        <span>•</span>
+                        <span>{total_musicas} músicas</span>
+                    </div>
+                </a>
+                <div class="playlistFooter">
+                    <button class="likeBtn" onclick="likePlaylist(event, {pid}, this)">
+                        ❤️ <span class="likeCount">{likes}</span>
+                    </button>
+                    <a href="/playlists/{pid}" style="font-size:13px; font-weight:700; color:#ff7a00; text-decoration:none;">Ver Playlist →</a>
+                </div>
+            </div>
+            """
+    else:
+        html += """
+        <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #9ca3af; background:rgba(255,255,255,0.4); border-radius:14px;">
+            <p style="font-size:16px; font-weight:bold; margin:0;">Nenhuma playlist pública cadastrada ainda.</p>
+            <p style="font-size:14px; margin-top:5px;">Crie uma playlist e marque como Pública no painel para que ela apareça aqui!</p>
+        </div>
+        """
+        
+    html += """
+        </div>
+    </div>
+    
+    <script>
+        function likePlaylist(event, pid, btn) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            fetch('/playlists/like/' + pid, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.likes === 'number') {
+                    const countSpan = btn.querySelector('.likeCount');
+                    if (countSpan) countSpan.innerText = data.likes;
+                    
+                    btn.style.transform = "scale(1.3)";
+                    setTimeout(() => { btn.style.transform = "scale(1)"; }, 150);
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    </script>
+    """
+    return html
+
+
+@main_bp.route("/playlists/like/<int:pid>", methods=["POST"])
+def like_playlist_route(pid):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("UPDATE playlists SET likes = likes + 1 WHERE id = ?", (pid,))
+    conn.commit()
+    c.execute("SELECT likes FROM playlists WHERE id = ?", (pid,))
+    new_likes = c.fetchone()[0]
+    conn.close()
+    return jsonify({"likes": new_likes})
+
+@main_bp.route("/playlists/<int:pid>")
+def playlist_details_route(pid):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    
+    # Get playlist meta
+    c.execute("SELECT nome, publica, likes FROM playlists WHERE id = ?", (pid,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return redirect(url_for("main.playlists_gallery"))
+        
+    nome, publica, likes = row
+    
+    # Get tracks
+    c.execute("""
+        SELECT m.id, m.titulo, m.slug, a.nome, a.slug, m.tom, m.uid
+        FROM playlist_musicas pm
+        JOIN musicas m ON pm.musica_id = m.id
+        JOIN artistas a ON m.artista_id = a.id
+        WHERE pm.playlist_id = ?
+        ORDER BY pm.id
+    """, (pid,))
+    tracks = c.fetchall()
+    conn.close()
+    
+    html = header(f"Playlist - {nome}")
+    
+    html += f"""
+    <style>
+        .playlistDetailsWrapper {{
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            font-family: 'Inter', sans-serif;
+        }}
+        .detailsHeader {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 24px;
+            margin-bottom: 30px;
+        }}
+        .detailsHeader h1 {{
+            font-size: 32px;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 6px 0;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+        .pubBadge {{ background: #ecfdf5; color: #10b981; }}
+        .privBadge {{ background: #f3f4f6; color: #6b7280; }}
+        .trackItem {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(16px);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.4);
+            margin-bottom: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.01);
+            transition: all 0.2s ease;
+        }}
+        .trackItem:hover {{
+            transform: translateX(6px);
+            border-color: #ff7a00;
+            box-shadow: 0 6px 15px rgba(255,122,0,0.05);
+        }}
+        .trackInfo a {{
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+            text-decoration: none;
+        }}
+        .trackInfo span {{
+            font-size: 13px;
+            color: #6b7280;
+            margin-left: 10px;
+        }}
+        .trackNum {{
+            font-weight: 800;
+            color: #d1d5db;
+            font-size: 20px;
+            width: 35px;
+        }}
+    </style>
+    
+    <div class="playlistDetailsWrapper">
+        <div class="detailsHeader">
+            <div>
+                <span class="badge {'pubBadge' if publica else 'privBadge'}">{'Pública' if publica else 'Privada'}</span>
+                <h1 style="margin-top:8px;">{nome}</h1>
+                <p style="color:#6b7280; font-size:14px; margin:0;">Contém {len(tracks)} cifras cadastradas</p>
+            </div>
+            <div>
+                <button class="likeBtn" style="font-size:18px; background:rgba(239,68,68,0.1); padding:10px 20px; border-radius:12px;" onclick="likePlaylist(event, {pid}, this)">
+                    ❤️ <span class="likeCount">{likes}</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="tracksList">
+    """
+    
+    if tracks:
+        for idx, (tid, title, slug, artist_name, artist_slug, tom, suid) in enumerate(tracks, start=1):
+            html += f"""
+            <div class="trackItem">
+                <div style="display:flex; align-items:center;">
+                    <div class="trackNum">{idx:02d}</div>
+                    <div class="trackInfo">
+                        <a href="/artista/{artist_slug}/{suid}">{title}</a>
+                        <span>({artist_name})</span>
+                    </div>
+                </div>
+                <span style="background:#fff; border:1px solid #e5e7eb; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:bold; color:#4b5563;">Tom: {tom or "N/D"}</span>
+            </div>
+            """
+    else:
+        html += """
+        <div style="text-align: center; padding: 60px; color: #9ca3af;">
+            <p style="font-size:16px; font-weight:bold; margin:0;">Esta playlist está vazia.</p>
+            <p style="font-size:14px; margin-top:5px;">Navegue pelas cifras do site e utilize o menu lateral para adicionar músicas!</p>
+        </div>
+        """
+        
+    html += """
+        </div>
+    </div>
+    
+    <script>
+        function likePlaylist(event, pid, btn) {
+            event.preventDefault();
+            
+            fetch('/playlists/like/' + pid, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.likes === 'number') {
+                    const countSpan = btn.querySelector('.likeCount');
+                    if (countSpan) countSpan.innerText = data.likes;
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    </script>
+    """
+    return html
+

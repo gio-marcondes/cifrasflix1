@@ -2868,3 +2868,78 @@ body.dark-mode .lyricReader .lyricBox {
     left: 100%;
     margin-left: -14px;
 }
+
+/* Premium upgrades for Home Dashboard cards */
+.moduleCard {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.moduleCard strong {
+    color: var(--text) !important;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+}
+
+.moduleCard span {
+    color: var(--muted) !important;
+    font-size: 13.5px !important;
+    line-height: 1.4 !important;
+}
+
+.moduleCard em {
+    color: var(--accent) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+/* Hover effects with modern accent shadows and gradients */
+.moduleCard:hover {
+    transform: translateY(-4px) scale(1.02) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 12px 24px -8px rgba(229, 9, 20, 0.25) !important;
+}
+
+/* Custom styling for studio tools (promoCard) to stand out with micro-gradients */
+.promoCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #E50914, #ff5b66);
+}
+
+.promoCard:nth-of-type(2)::before {
+    background: linear-gradient(to bottom, #7c3aed, #db2777) !important;
+}
+
+.promoCard:nth-of-type(3)::before {
+    background: linear-gradient(to bottom, #ec4899, #f43f5e) !important;
+}
+
+.promoCard:nth-of-type(4)::before {
+    background: linear-gradient(to bottom, #10b981, #059669) !important;
+}
+
+.promoCard:nth-of-type(5)::before {
+    background: linear-gradient(to bottom, #3b82f6, #1d4ed8) !important;
+}
+
+.promoCard:nth-of-type(6)::before {
+    background: linear-gradient(to bottom, #f59e0b, #d97706) !important;
+}
+
+body.dark-mode .moduleCard {
+    background: #181818 !important;
+    border-color: #262626 !important;
+}

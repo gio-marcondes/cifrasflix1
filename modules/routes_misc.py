@@ -674,29 +674,15 @@ def _mp3detect_worker(job_id, youtube_url):
 def favoritar(id):
     conn = sqlite3.connect(DB)
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO favoritos (musica_id) VALUES (?)", (id,))
+    c.execute("SELECT id FROM favoritos WHERE musica_id = ?", (id,))
+    row = c.fetchone()
+    if row:
+        c.execute("DELETE FROM favoritos WHERE musica_id = ?", (id,))
+    else:
+        c.execute("INSERT OR IGNORE INTO favoritos (musica_id) VALUES (?)", (id,))
     conn.commit()
     conn.close()
-    return redirect("/favoritos")
-
-
-@misc_bp.route("/favoritos")
-def favoritos():
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute("""
-    SELECT m.titulo, a.slug, m.uid
-    FROM favoritos f
-    JOIN musicas m ON f.musica_id=m.id
-    JOIN artistas a ON m.artista_id=a.id
-    """)
-    favs = c.fetchall()
-    conn.close()
-    html = header("Favoritos") + "<ul>"
-    for titulo, slug, uid in favs:
-        html += f"<li style='padding:6px 0;'><a href='/artista/{slug}/{uid}' style='color:white;text-decoration:none;'>{titulo}</a></li>"
-    html += "</ul></main>"
-    return html
+    return redirect(request.referrer or "/painel")
 
 
 @misc_bp.route("/stats")
