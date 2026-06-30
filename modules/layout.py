@@ -9,8 +9,25 @@ def header(titulo="CifrasFlix"):
     
     if session.get("user") == "adm":
         user_html = """
-        <a href="/painel" class="loginButton" style="background:#ff7a00; color:#fff; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; border-radius: 8px;">Painel (adm)</a>
-        <a href="/logout" style="color:#ef4444; font-size:13px; margin-left:10px; text-decoration:none; font-weight:bold; display: inline-block; vertical-align: middle;">Sair</a>
+        <div class="profileDropdown">
+            <button class="profileDropdownBtn" onclick="toggleProfileDropdown(event)" aria-label="Menu do perfil">
+                <svg class="profileAvatar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; display: block;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </button>
+            <div class="profileDropdownContent">
+                <div class="profileInfo">
+                    <strong>Administrador</strong>
+                    <span>Acesso Adm</span>
+                </div>
+                <hr class="dropdownDivider">
+                <a href="/painel">Painel de Controle</a>
+                <a href="/admin">Configurações</a>
+                <hr class="dropdownDivider">
+                <a href="/logout" class="logoutLink">Sair</a>
+            </div>
+        </div>
         """
         html = html.replace('<button type="button" id="loginBtn" class="loginButton">Entrar</button>', user_html)
     else:

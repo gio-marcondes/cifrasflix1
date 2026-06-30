@@ -939,6 +939,144 @@ def mp3detect():
         .mp3CifraWrap{border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:12px;color:#0f172a}
         .mp3CifraBox{margin:0;font:600 13px/1.6 'Consolas','Courier New',monospace;white-space:pre-wrap;word-break:break-word}
         @media (max-width: 900px){.mp3DetectGrid{grid-template-columns:1fr}.mp3MetaGrid{grid-template-columns:1fr}.mp3NowPlaying{grid-template-columns:1fr}.mp3CoverArt{width:180px;height:180px;justify-self:center}.mp3NowInfo{text-align:center}.mp3SongTitle{font-size:28px}.mp3FinderRow{grid-template-columns:1fr}}
+
+        /* DARK MODE STYLES FOR MP3DETECT PAGE */
+        body.dark-mode .mp3DetectPage {
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3DetectHero,
+        body.dark-mode .mp3DetectCard {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3) !important;
+        }
+        body.dark-mode .mp3Eyebrow {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3DetectHero h1 {
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3DetectHero p {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3FinderRow input {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3FinderRow button {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3Status {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3ProgressWrap {
+            background: #2c2c2e !important;
+        }
+        body.dark-mode .mp3PlayerWrap {
+            background: linear-gradient(145deg, #2c2c2e 0%, #1c1c1e 100%) !important;
+            border-color: #3a3a3c !important;
+        }
+        body.dark-mode .mp3CoverArt {
+            border-color: #3a3a3c !important;
+            background: #2c2c2e !important;
+        }
+        body.dark-mode .mp3SongTitle {
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3SongMeta {
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .mp3SongMetaExtra {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3MetaItem {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+        }
+        body.dark-mode .mp3MetaLabel {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3MetaValue {
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3ChordPill {
+            background: #2c2c2e !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3ChordPill.active {
+            background: #ff9f0a !important;
+            color: #1c1c1e !important;
+        }
+        body.dark-mode .mp3Sub {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3CurrentChord {
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .mp3Hint {
+            color: #8e8e93 !important;
+        }
+        body.dark-mode .mp3DiagramWrap {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+        }
+        body.dark-mode .mp3ChordDiagram svg {
+            filter: invert(0.9) contrast(1.2) !important;
+        }
+        body.dark-mode .mp3Timeline {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+        }
+        body.dark-mode .mp3ChordChip {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3ChordChip.active {
+            background: #3a3000 !important;
+            border-color: #ff9f0a !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 14px rgba(255, 159, 10, 0.22) !important;
+        }
+        body.dark-mode .mp3ChordMiniName {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .mp3ChordChip.active .mp3ChordMiniName {
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .mp3ChordMini svg {
+            filter: invert(0.9) contrast(1.2) !important;
+        }
+        body.dark-mode .mp3TranslateBtn {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3TranslateBtn.on {
+            background: #1e3a2f !important;
+            border-color: #30d158 !important;
+            color: #30d158 !important;
+        }
+        body.dark-mode .mp3LyricColTitle {
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .mp3LyricBox {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3CifraWrap {
+            background: #2c2c2e !important;
+            border-color: #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .mp3CifraBox {
+            color: #ffffff !important;
+        }
     </style>
 
     <script>
@@ -1790,204 +1928,3 @@ def mp3detect_youtube_search():
         pass
 
     return jsonify({"error": "Nenhum resultado encontrado no YouTube."}), 404
-
-
-@misc_bp.route("/api/flix-play/search")
-def flix_play_search_api():
-    q = (request.args.get("q") or "").strip()
-    try:
-        limit = int(request.args.get("limit") or 10)
-    except Exception:
-        limit = 10
-    limit = max(1, min(10, limit))
-
-    if not q:
-        return jsonify({"results": []})
-
-    def limpar_titulo_gp(texto):
-        valor = (texto or "").strip()
-        if not valor:
-            return ""
-        valor = re.sub(r"\(([^)]*?)\s+by\s+[^)]*\)", r"(\1)", valor, flags=re.IGNORECASE)
-        valor = re.sub(r"\s{2,}", " ", valor).strip()
-        return valor
-
-    def titulo_exibicao(texto):
-        valor = (texto or "").strip()
-        if not valor:
-            return ""
-        valor = re.sub(r"\s*\((?:ver\.?\s*)?\d+\)\s*$", "", valor, flags=re.IGNORECASE)
-        return valor.strip()
-
-    _refresh_guitarpro_index_txt()
-    idx_path = _guitarpro_index_file_path()
-    if not idx_path.exists():
-        return jsonify({"results": []})
-
-    q_norm = _normalizar_guitarpro_nome(q)
-    if not q_norm:
-        return jsonify({"results": []})
-    q_flat = q_norm.replace(" ", "")
-    q_tokens = [tok for tok in q_norm.split(" ") if tok]
-
-    out = []
-    vistos = set()
-    conn = None
-    cur = None
-
-    def _album_info_for_track(artista_slug, musica_slug, musica_titulo):
-        if not cur:
-            return ("", "")
-
-        try:
-            slug_base = re.sub(r"-(?:ver-\d+|\d+)$", "", musica_slug or "").strip("-")
-            titulo_base_txt = re.sub(r"\s*\(.*?\)\s*$", "", (musica_titulo or "").strip())
-            titulo_base_like = f"{titulo_base_txt} (%" if titulo_base_txt else ""
-            artista_hint_like = f"%{(artista_slug or '').replace('-', ' ')}%"
-            cur.execute(
-                """
-                SELECT
-                    al.id AS album_id,
-                    al.nome AS album_nome,
-                    COALESCE(al.capa, '') AS album_capa
-                FROM cancao c
-                JOIN albuns al ON al.id = c.album_id
-                JOIN artistas ar ON ar.id = al.artista_id
-                WHERE (ar.slug = ? OR ar.slug = 'unknown')
-                  AND (
-                    c.cancao_slug = ?
-                    OR c.cancao_slug = ?
-                    OR c.cancao_slug LIKE ?
-                    OR LOWER(TRIM(c.titulo)) = LOWER(TRIM(?))
-                    OR LOWER(TRIM(c.titulo)) LIKE LOWER(TRIM(?))
-                  )
-                ORDER BY
-                    CASE
-                        WHEN ar.slug = ? THEN 0
-                        WHEN ar.slug = 'unknown' AND LOWER(COALESCE(al.nome, '')) LIKE LOWER(?) THEN 1
-                        WHEN ar.slug = 'unknown' THEN 2
-                        ELSE 9
-                    END,
-                    CASE
-                        WHEN c.cancao_slug = ? THEN 0
-                        WHEN c.cancao_slug = ? THEN 1
-                        WHEN LOWER(TRIM(c.titulo)) = LOWER(TRIM(?)) THEN 2
-                        WHEN LOWER(TRIM(c.titulo)) LIKE LOWER(TRIM(?)) THEN 3
-                        WHEN c.cancao_slug LIKE ? THEN 4
-                        ELSE 8
-                    END,
-                    c.id
-                LIMIT 1
-                """,
-                (
-                    artista_slug,
-                    musica_slug,
-                    musica_slug,
-                    slug_base,
-                    titulo_base_txt,
-                    titulo_base_like,
-                    artista_slug,
-                    artista_hint_like,
-                    musica_slug,
-                    slug_base,
-                    titulo_base_txt,
-                    titulo_base_like,
-                    f"{slug_base}-%",
-                ),
-            )
-            row = cur.fetchone()
-            if not row:
-                return ("", "")
-
-            album_nome = (row[1] or "").strip()
-            capa_raw = (row[2] or "").strip()
-            if capa_raw and capa_raw.lower() not in {"null", "none", "nan"}:
-                return (album_nome, capa_raw)
-
-            return (album_nome, "")
-        except Exception:
-            return ("", "")
-
-        return ("", "")
-
-    try:
-        conteudo = idx_path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        return jsonify({"results": []})
-
-    try:
-        conn = sqlite3.connect(DB)
-        cur = conn.cursor()
-    except Exception:
-        conn = None
-        cur = None
-
-    for linha in conteudo.splitlines():
-        if not linha.strip():
-            continue
-        partes = linha.split("\t")
-        if len(partes) < 5:
-            continue
-
-        artista_norm = (partes[0] or "").strip()
-        musica_norm = (partes[1] or "").strip()
-        artista_nome = (partes[3] or artista_norm.title()).strip()
-        musica_titulo = limpar_titulo_gp((partes[4] or musica_norm.title()).strip())
-        musica_titulo_view = titulo_exibicao(musica_titulo) or musica_titulo
-        if not artista_norm or not musica_norm:
-            continue
-
-        artista_raw_norm = _normalizar_guitarpro_nome(artista_nome)
-        musica_raw_norm = _normalizar_guitarpro_nome(musica_titulo)
-        artista_raw_low = artista_nome.lower()
-        musica_raw_low = musica_titulo.lower()
-        artista_flat = (artista_norm or artista_raw_norm).replace(" ", "")
-        musica_flat = (musica_norm or musica_raw_norm).replace(" ", "")
-        q_low = q.lower()
-        combined_norm = " ".join(
-            [artista_norm, musica_norm, artista_raw_norm, musica_raw_norm]
-        ).strip()
-        token_match = bool(q_tokens) and all(tok in combined_norm for tok in q_tokens)
-
-        direct_match = not (
-            q_norm not in artista_norm
-            and q_norm not in musica_norm
-            and q_norm not in artista_raw_norm
-            and q_norm not in musica_raw_norm
-            and q_flat not in artista_flat
-            and q_flat not in musica_flat
-            and q_low not in artista_raw_low
-            and q_low not in musica_raw_low
-        )
-
-        if not direct_match and not token_match:
-            continue
-
-        chave = (artista_norm, musica_norm)
-        if chave in vistos:
-            continue
-        vistos.add(chave)
-
-        artista_slug = normalizar_slug(artista_nome)
-        musica_slug = normalizar_slug(musica_titulo)
-        musica_slug_padrao = normalizar_slug(musica_titulo_view) or musica_slug
-        album_nome, album_thumb = _album_info_for_track(artista_slug, musica_slug, musica_titulo)
-        out.append(
-            {
-                "artist": artista_nome,
-                "title": musica_titulo_view,
-                "play_url": f"/tocador-gp4/{artista_slug}/{musica_slug_padrao}",
-                "lyric_url": f"/letra/{artista_slug}/{musica_slug}",
-                "train_url": f"/treinar/{artista_slug}/{musica_slug}",
-                "album_name": album_nome,
-                "album_thumb": album_thumb,
-            }
-        )
-
-        if len(out) >= limit:
-            break
-
-    if conn:
-        conn.close()
-
-    return jsonify({"results": out})

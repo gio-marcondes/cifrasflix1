@@ -141,7 +141,7 @@ function renderPlayerSearchResults(data, append = false) {
     playerSearchResults.innerHTML = "";
   }
 
-  if (!data.results || !data.results.length) {
+  if (!data || !data.results || !data.results.length) {
     playerSearchResults.innerHTML = '<div class="player-search-item"><strong>Nenhum FlixPlayer encontrado</strong><small>Tente outro artista ou musica</small></div>';
     playerSearchResults.hidden = false;
     return;
@@ -150,24 +150,20 @@ function renderPlayerSearchResults(data, append = false) {
   data.results.forEach((item) => {
     const row = document.createElement("div");
     row.className = "player-search-item";
+    
+    const title = item.titulo || item.title || "";
+    const artist = item.artista_nome || item.artist || "";
+    const playUrl = item.player_url || item.play_url || `/tocador-gp4/${item.artista}/${item.uid}`;
+
     row.innerHTML = `
-      <strong>${item.titulo}</strong>
-      <small>${item.artista_nome}</small>
+      <strong>${escapeHtml(title)}</strong>
+      <small>${escapeHtml(artist)}</small>
     `;
     row.onclick = () => {
-      window.location.href = item.player_url || `/tocador-gp4/${item.artista}/${item.uid}`;
+      window.location.href = playUrl;
     };
     playerSearchResults.appendChild(row);
   });
-
-  if (data.has_next) {
-    const more = document.createElement("button");
-    more.type = "button";
-    more.className = "discover-btn";
-    more.textContent = "Mais resultados";
-    more.onclick = () => loadPlayerSearchPage(lastPlayerSearchTerm, true);
-    playerSearchResults.appendChild(more);
-  }
 
   playerSearchResults.hidden = false;
 }
@@ -190,7 +186,7 @@ function loadPlayerSearchPage(q, append = false) {
   playerSearchResults.hidden = false;
   playerSearchResults.innerHTML = '<div class="player-search-item"><strong>Buscando...</strong><small>Carregando FlixPlayer</small></div>';
 
-  fetch(`/buscar?q=${encodeURIComponent(q)}&page=${playerSearchPage}&gp=1`)
+  fetch(`/api/flix-play/search?q=${encodeURIComponent(q)}&limit=10`)
     .then((r) => r.json())
     .then((data) => renderPlayerSearchResults(data, append))
     .catch(() => {
@@ -708,6 +704,7 @@ function buildFretboardDataFromScore(score) {
 function applyTheme(mode) {
   const dark = mode === "dark";
   document.body.classList.toggle("theme-dark", dark);
+  document.body.classList.toggle("dark-mode", dark);
   if (themeBtn) {
     themeBtn.textContent = dark ? "☀️ Claro" : "🌙 Escuro";
   }
@@ -731,6 +728,10 @@ function initTheme() {
     const isDark = document.body.classList.contains("theme-dark");
     applyTheme(isDark ? "light" : "dark");
   });
+  window.toggleDark = function() {
+    const isDark = document.body.classList.contains("theme-dark");
+    applyTheme(isDark ? "light" : "dark");
+  };
 }
 
 function applyPerformanceMode(enabled) {

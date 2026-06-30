@@ -82,7 +82,7 @@
       font-weight: 500;
     }
 
-    .menu-trigger:hover, .menu-item:hover .menu-trigger {
+    .menu-trigger:hover, .menu-item.active .menu-trigger {
       background: rgba(255, 255, 255, 0.08);
       color: #fff;
     }
@@ -101,12 +101,25 @@
       z-index: 1010;
     }
 
-    .menu-item:hover .menu-dropdown {
+    .menu-item.active .menu-dropdown {
       display: block;
     }
 
-    .menu-dropdown.closed {
-      display: none !important;
+    .home-link-trigger {
+      padding: 6px 12px;
+      color: var(--text);
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .home-link-trigger:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
     }
 
     .menu-dropdown a {
@@ -1321,6 +1334,7 @@
 
   <!-- Menu Superior de Arquivo -->
   <div class="top-menu-bar" style="display: flex; gap: 10px;">
+    <a href="/" class="home-link-trigger" title="Voltar para Home">🏠</a>
     <div class="menu-item">
       <span class="menu-trigger">Arquivo</span>
       <div class="menu-dropdown">
@@ -1412,6 +1426,8 @@
       <button class="btn-daw active" id="btnPointerMode" title="Ferramenta Seleção / Ponteiro (Atalhos: 1 ou V)">↖️</button>
       <button class="btn-daw" id="btnRegionMode" title="Ferramenta Região (Atalho: R)">📐</button>
       <button class="btn-daw" id="btnCutMode" title="Ferramenta de Corte (Atalhos: 3 ou C)">✂️</button>
+      <button class="btn-daw" id="btnLoop" type="button" title="Repetição (Loop de Trecho)">🔁</button>
+      <button class="btn-daw active" id="btnAutoScroll" type="button" title="Seguir Cursor (Auto-Scroll)">&gt;[</button>
       <button class="btn-daw" id="btnUndo" title="Desfazer" disabled>↶</button>
       <button class="btn-daw" id="btnRedo" title="Refazer" disabled>↷</button>
       <button class="btn-daw" id="btnZoomOut" title="Diminuir Zoom" style="font-weight: bold; padding: 4px 8px;">🔍-</button>
@@ -1571,8 +1587,6 @@
         </button>
         <button id="transportStop" class="transport-icon-btn" type="button" aria-label="Parar" style="font-size: 10px;">⏹</button>
         <button id="transportForward" class="transport-icon-btn" type="button" aria-label="Avancar 5 segundos">&#9654;&#9654;</button>
-        <button id="btnLoop" class="transport-icon-btn" type="button" title="Repetição (Loop de Trecho)">🔁</button>
-        <button id="btnAutoScroll" class="transport-icon-btn active" type="button" title="Seguir Cursor (Auto-Scroll)">🎯</button>
         <button id="btnMetronome" class="transport-icon-btn" type="button" title="Metrônomo">🔊</button>
       </div>
       <div class="transport-bottom">
@@ -1640,6 +1654,26 @@
       <div class="modal-fx-content" id="modalFxContent">
         <!-- Conteúdo do Rack de Efeitos renderizado via JS -->
       </div>
+  </div>
+
+  <!-- Painel Mixer Flutuante (F3) -->
+  <div class="floating-panel" id="modalMixerRack" style="display: flex; width: 300px; top: auto; bottom: 65px; left: 20px; z-index: 1049; border-color: rgba(6, 182, 212, 0.4); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 24px rgba(6, 182, 212, 0.2); flex-direction: column;">
+    <!-- Cabeçalho Draggable -->
+    <div class="floating-panel-header" id="modalMixerRackHeader" style="cursor: move;">
+      <div class="floating-panel-title" style="color: #06b6d4; display: flex; align-items: center; gap: 6px;">
+        <span>🎛️ Rack de Efeitos & Mixer</span>
+        <button id="btnMinimizeMixer" onclick="toggleMixerMinimization(event)" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #94a3b8; font-size: 11px; cursor: pointer; padding: 2px 6px; margin-left: 8px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; height: 18px; width: 18px;" title="Maximizar">🗖</button>
+      </div>
+      <div class="floating-panel-close" onclick="toggleMixerRackModal()">&times;</div>
+    </div>
+    
+    <!-- Corpo do Mixer (que pode ser minimizado) -->
+    <div class="floating-panel-body" id="modalMixerRackBody" style="padding: 16px; display: none; flex-direction: column; gap: 12px; background: rgba(11, 14, 28, 0.95); max-height: 480px; overflow-y: auto;">
+      <!-- Grid de canais de trilha -->
+      <div id="mixerRackGrid" style="display: flex; gap: 16px; overflow-x: auto; padding: 5px; min-height: 380px; align-items: flex-start; scrollbar-width: thin;">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </div>
   </div>
 
   <!-- Modal de Adicionar Trilha -->
@@ -3168,6 +3202,9 @@
     function confirmarAlteracoesFx() {
         fecharModalFx();
         renderDAW();
+        if (document.getElementById('modalMixerRack').style.display === 'flex') {
+            renderMixerRack();
+        }
     }
 
     function cancelarAlteracoesFx() {
@@ -3178,6 +3215,9 @@
             if (isPlaying) rebuildSignalChains();
         }
         fecharModalFx();
+        if (document.getElementById('modalMixerRack').style.display === 'flex') {
+            renderMixerRack();
+        }
     }
 
     function redesenharEq(index) {
@@ -3674,6 +3714,227 @@
       renderFxModal();
       document.getElementById('modalFxRack').style.display = 'flex';
     }
+
+    let mixerIsMinimized = true;
+
+    function toggleMixerMinimization(event) {
+      if (event) event.stopPropagation();
+      const body = document.getElementById('modalMixerRackBody');
+      const btn = document.getElementById('btnMinimizeMixer');
+      const panel = document.getElementById('modalMixerRack');
+      if (!body || !btn || !panel) return;
+
+      if (body.style.display === 'none') {
+        body.style.display = 'flex';
+        btn.innerText = '🗕';
+        btn.title = 'Minimizar';
+        panel.style.width = '950px';
+        mixerIsMinimized = false;
+      } else {
+        body.style.display = 'none';
+        btn.innerText = '🗖';
+        btn.title = 'Maximizar';
+        panel.style.width = '300px';
+        mixerIsMinimized = true;
+      }
+    }
+
+    function toggleMixerRackModal() {
+      const modal = document.getElementById('modalMixerRack');
+      if (!modal) return;
+      if (modal.style.display === 'flex' || modal.style.display === 'block') {
+        modal.style.display = 'none';
+      } else {
+        renderMixerRack();
+        modal.style.display = 'flex';
+        
+        const body = document.getElementById('modalMixerRackBody');
+        const btn = document.getElementById('btnMinimizeMixer');
+        if (body && btn) {
+          if (mixerIsMinimized) {
+            body.style.display = 'none';
+            btn.innerText = '🗖';
+            btn.title = 'Maximizar';
+            modal.style.width = '300px';
+          } else {
+            body.style.display = 'flex';
+            btn.innerText = '🗕';
+            btn.title = 'Minimizar';
+            modal.style.width = '950px';
+          }
+        }
+      }
+    }
+
+    function renderMixerRack() {
+      const grid = document.getElementById('mixerRackGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      if (tracks.length === 0) {
+        grid.innerHTML = `<div style="color: var(--text-muted); padding: 40px 0; text-align: center; width: 100%; font-weight: bold;">Nenhuma trilha no projeto.</div>`;
+        return;
+      }
+
+      tracks.forEach(track => {
+        let effectsListHtml = '';
+        if (track.effects && track.effects.length > 0) {
+          track.effects.forEach((fx, fxIdx) => {
+            const activeBg = fx.active 
+              ? 'background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4);' 
+              : 'background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.05); opacity: 0.5;';
+            effectsListHtml += `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-radius: 4px; border: 1px solid; font-size: 11px; margin-bottom: 4px; ${activeBg}">
+                <input type="checkbox" ${fx.active ? 'checked' : ''} 
+                       onchange="toggleMixerFxActive('${track.id}', ${fxIdx}, this.checked)" 
+                       style="cursor: pointer; margin-right: 4px; width: 12px; height: 12px;">
+                
+                <span onclick="editMixerFxParams('${track.id}', ${fxIdx})" 
+                      style="cursor: pointer; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #fff;" 
+                      title="Clique para editar">
+                  ${getEffectTitle(fx.type)}
+                </span>
+                
+                <span onclick="deleteMixerFx('${track.id}', ${fxIdx})" 
+                      style="cursor: pointer; color: var(--rose); font-weight: bold; font-size: 12px; padding: 0 2px; margin-left: 4px;" 
+                      title="Remover">&times;</span>
+              </div>
+            `;
+          });
+        } else {
+          effectsListHtml = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Sem efeitos</div>`;
+        }
+
+        const trackStrip = document.createElement('div');
+        trackStrip.className = 'mixer-strip';
+        trackStrip.style.cssText = 'width: 170px; flex-shrink: 0; background: rgba(22, 28, 45, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; display: flex; flex-direction: column; align-items: center; padding: 14px 10px; box-sizing: border-box;';
+        
+        trackStrip.innerHTML = `
+          <div style="width: 100%; border-bottom: 2px solid ${track.color || '#8b5cf6'}; padding-bottom: 8px; margin-bottom: 12px; text-align: center;">
+            <strong style="color: #fff; font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${track.name}">${track.name}</strong>
+            <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">${track.type === 'audio' ? 'Áudio' : 'Instrumento'}</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 16px; width: 100%;">
+            <span id="mixerVolVal-${track.id}" style="font-size: 11px; font-weight: bold; color: var(--cyan);">${track.volume}%</span>
+            <div style="height: 140px; display: flex; align-items: center; justify-content: center; position: relative;">
+              <input type="range" class="mixer-volume-slider" min="0" max="100" value="${track.volume}" 
+                     style="writing-mode: vertical-lr; direction: rtl; appearance: slider-vertical; -webkit-appearance: slider-vertical; width: 16px; height: 120px; cursor: pointer; accent-color: var(--accent); background: rgba(255,255,255,0.05); border-radius: 8px;"
+                     oninput="syncMixerVolume('${track.id}', this.value)">
+            </div>
+            <span style="font-size: 9px; color: var(--text-muted); font-weight: bold; letter-spacing: 0.5px;">VOLUME</span>
+          </div>
+
+          <div style="width: 100%; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 9px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 2px; text-align: center;">Efeitos (Slots)</div>
+            
+            <div style="display: flex; flex-direction: column; max-height: 140px; overflow-y: auto;">
+              ${effectsListHtml}
+            </div>
+
+            <div style="position: relative; margin-top: 4px;">
+              <select onchange="addMixerFx('${track.id}', this.value); this.value='';" style="width: 100%; background: rgba(10,15,30,0.9); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; padding: 4px; font-size: 10px; outline: none; cursor: pointer; font-weight: bold; text-align: center;">
+                <option value="" selected>+ Efeito</option>
+                <option value="pro_eq">Pro EQ (Visual)</option>
+                <option value="eq">Equalizador (EQ)</option>
+                <option value="delay">Delay de Eco</option>
+                <option value="reverb">Reverb de Sala</option>
+                <option value="pitch_correction">Auto-Tune</option>
+                <option value="distortion">Distorção / Overdrive</option>
+                <option value="pitch_shift">Alteração de Tom</option>
+                <option value="lufs_meter">Medidor de LUFS</option>
+              </select>
+            </div>
+          </div>
+        `;
+        grid.appendChild(trackStrip);
+      });
+    }
+
+    window.syncMixerVolume = function(trackId, value) {
+      const volDisplay = document.getElementById(`mixerVolVal-${trackId}`);
+      if (volDisplay) volDisplay.textContent = `${value}%`;
+
+      const slider = document.querySelector(`.vol-slider[data-track-id="${trackId}"]`);
+      if (slider) {
+        slider.value = value;
+        slider.dispatchEvent(new Event('input'));
+      }
+      const track = tracks.find(t => t.id === trackId);
+      if (track) {
+        track.volume = parseInt(value);
+      }
+    };
+
+    window.toggleMixerFxActive = function(trackId, fxIdx, active) {
+      const track = tracks.find(t => t.id === trackId);
+      if (track && track.effects && track.effects[fxIdx]) {
+        track.effects[fxIdx].active = active;
+        rebuildSignalChains();
+        renderDAW();
+        renderMixerRack();
+      }
+    };
+
+    window.deleteMixerFx = function(trackId, fxIdx) {
+      if (!confirm("Deseja realmente remover este efeito?")) return;
+      const track = tracks.find(t => t.id === trackId);
+      if (track && track.effects) {
+        track.effects.splice(fxIdx, 1);
+        rebuildSignalChains();
+        renderDAW();
+        renderMixerRack();
+      }
+    };
+
+    window.addMixerFx = function(trackId, type) {
+      if (!type) return;
+      const track = tracks.find(t => t.id === trackId);
+      if (!track) return;
+      
+      let newFx = {
+        type: type,
+        active: true
+      };
+      
+      if (type === 'pro_eq') {
+        newFx.params = {
+          lf_freq: 80, lf_gain: 0, lf_q: 0.7, lf_active: true,
+          lmf_freq: 300, lmf_gain: 0, lmf_q: 0.7, lmf_active: true,
+          hmf_freq: 2000, hmf_gain: 0, hmf_q: 0.7, hmf_active: true,
+          hf_freq: 8000, hf_gain: 0, hf_q: 0.7, hf_active: true,
+          hc_freq: 20000, hc_q: 0.7, hc_active: true
+        };
+        newFx.selectedBand = 'lf';
+      } else if (type === 'eq') {
+        newFx.params = { bass: 0, mid: 0, treble: 0 };
+      } else if (type === 'delay') {
+        newFx.params = { delayTime: 0.3, feedback: 0.4, mix: 0.3 };
+      } else if (type === 'reverb') {
+        newFx.params = { size: 2.0, mix: 0.3 };
+      } else if (type === 'distortion') {
+        newFx.params = { drive: 30, tone: 3000, level: 0.8 };
+      } else if (type === 'pitch_correction') {
+        newFx.params = { scale: 'Chromatic', key: 'C', speed: 20 };
+      } else if (type === 'pitch_shift') {
+        newFx.params = { semitones: 0 };
+      } else if (type === 'lufs_meter') {
+        newFx.params = {};
+      }
+      
+      if (!track.effects) track.effects = [];
+      track.effects.push(newFx);
+      
+      rebuildSignalChains();
+      renderDAW();
+      renderMixerRack();
+    };
+
+    window.editMixerFxParams = function(trackId, fxIdx) {
+      selectedTrackId = trackId;
+      renderDAWHeadersListSelection();
+      abrirModalFx(fxIdx);
+    };
 
     // =========================================================================
     // 🔊 AUDIO CONTROLLER & PLAYBACK SYSTEM
@@ -5956,18 +6217,48 @@
     }
 
     function setupTimelineInteractions() {
-      document.querySelectorAll('.menu-dropdown a').forEach(link => {
-        link.addEventListener('click', () => {
-          const dropdown = link.closest('.menu-dropdown');
-          if (dropdown) dropdown.classList.add('closed');
+      let menuIsOpen = false;
+      const menuItems = document.querySelectorAll('.top-menu-bar .menu-item');
+
+      function closeAllMenus() {
+        menuItems.forEach(item => {
+          item.classList.remove('active');
+        });
+        menuIsOpen = false;
+      }
+
+      menuItems.forEach(item => {
+        const trigger = item.querySelector('.menu-trigger');
+        if (!trigger) return;
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isActive = item.classList.contains('active');
+          closeAllMenus();
+          if (!isActive) {
+            item.classList.add('active');
+            menuIsOpen = true;
+          }
+        });
+
+        item.addEventListener('mouseenter', () => {
+          if (menuIsOpen) {
+            menuItems.forEach(mi => mi.classList.remove('active'));
+            item.classList.add('active');
+          }
         });
       });
 
-      document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('mouseleave', () => {
-          const dropdown = item.querySelector('.menu-dropdown');
-          if (dropdown) dropdown.classList.remove('closed');
+      document.querySelectorAll('.menu-dropdown a').forEach(link => {
+        link.addEventListener('click', () => {
+          closeAllMenus();
         });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.menu-item')) {
+          closeAllMenus();
+        }
       });
 
       document.querySelectorAll('.vol-slider').forEach(s => {
@@ -7201,10 +7492,12 @@
     // Desenha régua e inicializa
     updateTimelineLayout();
     renderDAW();
+    renderMixerRack();
     atualizarTransporteMasterDAW(0);
 
     // Inicialização do Espectro DAW
     makeDraggable('panelSpectrum', 'panelSpectrumHeader');
+    makeDraggable('modalMixerRack', 'modalMixerRackHeader');
     bindSpectrumDAWListeners();
     atualizarFFTDAW();
 
@@ -7218,6 +7511,19 @@
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         salvarConfiguracoes();
+        return;
+      }
+
+      // Tecla F3 para Rack de Efeitos & Mixer (Maximiza / Minimiza)
+      if (e.key === 'F3') {
+        e.preventDefault();
+        const modal = document.getElementById('modalMixerRack');
+        if (modal) {
+          if (modal.style.display === 'none') {
+            modal.style.display = 'flex';
+          }
+          toggleMixerMinimization();
+        }
         return;
       }
 
@@ -7279,8 +7585,8 @@
         return;
       }
 
-      // Tecla R para alternar ferramenta Região
-      if (e.key.toLowerCase() === 'r') {
+      // Tecla R ou 2 para alternar ferramenta Região
+      if (e.key.toLowerCase() === 'r' || e.key === '2') {
         e.preventDefault();
         const btnReg = document.getElementById('btnRegionMode');
         if (btnReg) btnReg.click();
@@ -7305,6 +7611,20 @@
         } else if (tracks.length > 0) {
           toggleRecord(tracks[0].id);
         }
+        return;
+      }
+
+      // Tecla [ para mais zoom
+      if (e.key === '[') {
+        e.preventDefault();
+        setZoom(PX_PER_SECOND + 15);
+        return;
+      }
+
+      // Tecla ] para menos zoom
+      if (e.key === ']') {
+        e.preventDefault();
+        setZoom(PX_PER_SECOND - 15);
         return;
       }
 
@@ -7487,12 +7807,15 @@
       if (!element || !header) return;
 
       let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+      let hasDragged = false;
       header.onmousedown = dragMouseDown;
 
       function dragMouseDown(e) {
         e = e || window.event;
         if (e.target.closest('.floating-panel-close')) return;
+        if (e.target.closest('button')) return;
         e.preventDefault();
+        hasDragged = false;
         pos3 = e.clientX;
         pos4 = e.clientY;
         document.onmouseup = closeDragElement;
@@ -7502,10 +7825,16 @@
       function elementDrag(e) {
         e = e || window.event;
         e.preventDefault();
+        hasDragged = true;
         pos1 = pos3 - e.clientX;
         pos2 = pos4 - e.clientY;
         pos3 = e.clientX;
         pos4 = e.clientY;
+        
+        if (element.style.bottom) {
+          element.style.bottom = '';
+        }
+        
         element.style.top = (element.offsetTop - pos2) + "px";
         element.style.left = (element.offsetLeft - pos1) + "px";
       }
@@ -7513,6 +7842,9 @@
       function closeDragElement() {
         document.onmouseup = null;
         document.onmousemove = null;
+        if (!hasDragged && elementId === 'modalMixerRack') {
+          toggleMixerMinimization();
+        }
       }
     }
 

@@ -7,7 +7,340 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/app.css">
 
+<style>
+    /* Header Modernization Overrides */
+    header.topBar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 64px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        z-index: 100000;
+        border-bottom: 1px solid rgba(228, 228, 231, 0.6);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+    }
+    
+    body.dark-mode header.topBar {
+        background: rgba(20, 20, 20, 0.85);
+        border-bottom: 1px solid rgba(38, 38, 38, 0.8);
+    }
 
+    .logo a {
+        font-family: 'Inter', sans-serif;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, #e50914 0%, #ff4d4d 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .logo a::before {
+        content: "🎸";
+        -webkit-text-fill-color: initial;
+        font-size: 18px;
+    }
+
+    .menu {
+        margin-left: 28px;
+        margin-right: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .menu a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .menu a:hover {
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.04);
+    }
+
+    body.dark-mode .menu a:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .menu a.active {
+        color: var(--text) !important;
+        background: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.dark-mode .menu a.active {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Dropdown menu container */
+    .menuDropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    /* Dropdown button */
+    .menuDropdownBtn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .menuDropdownBtn:hover, .menuDropdownBtn.active {
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.04);
+    }
+
+    body.dark-mode .menuDropdownBtn:hover, body.dark-mode .menuDropdownBtn.active {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Dropdown content */
+    .menuDropdownContent {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        background-color: var(--card);
+        min-width: 170px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 6px;
+        z-index: 100001;
+    }
+
+    body.dark-mode .menuDropdownContent {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Links inside the dropdown */
+    .menuDropdownContent a {
+        color: var(--muted);
+        padding: 8px 12px;
+        text-decoration: none;
+        display: block;
+        font-size: 13.5px;
+        font-weight: 500;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .menuDropdownContent a:hover {
+        background-color: var(--card-hover);
+        color: var(--text);
+    }
+
+    /* Search bar container */
+    .busca-container {
+        position: relative;
+        margin-right: 16px;
+        width: 240px;
+    }
+
+    #busca {
+        width: 100%;
+        height: 36px;
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        padding: 0 16px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        background: var(--bg);
+        color: var(--text);
+        transition: all 0.2s ease;
+    }
+
+    #busca:focus {
+        outline: none;
+        border-color: #ff7a00;
+        box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.15);
+        background: var(--card);
+    }
+
+    /* Dark Mode Toggle */
+    .darkToggle {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        margin-right: 12px;
+        color: var(--text);
+    }
+
+    .darkToggle:hover {
+        background: var(--card-hover);
+        transform: scale(1.05);
+    }
+
+    /* Login/Admin Button */
+    .loginButton {
+        height: 36px;
+        padding: 0 16px;
+        border-radius: 99px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        background: linear-gradient(135deg, #ff7a00 0%, #ff9500 100%) !important;
+        color: #fff !important;
+        box-shadow: 0 2px 8px rgba(255, 122, 0, 0.15);
+    }
+
+    .loginButton:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3);
+        filter: brightness(1.05);
+    }
+
+    /* Profile Dropdown */
+    .profileDropdown {
+        position: relative;
+        display: inline-block;
+        margin-left: 12px;
+    }
+
+    .profileDropdownBtn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--border);
+    }
+
+    .profileDropdownBtn:hover, .profileDropdownBtn.active {
+        color: var(--accent);
+        background: rgba(0, 0, 0, 0.04);
+        border-color: var(--accent);
+    }
+
+    body.dark-mode .profileDropdownBtn:hover, body.dark-mode .profileDropdownBtn.active {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .profileAvatar {
+        width: 24px;
+        height: 24px;
+    }
+
+    .profileDropdownContent {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        background-color: var(--card);
+        min-width: 200px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 8px;
+        z-index: 100002;
+        text-align: left;
+    }
+
+    body.dark-mode .profileDropdownContent {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .profileInfo {
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .profileInfo strong {
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .profileInfo span {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .dropdownDivider {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 6px 0;
+    }
+
+    .profileDropdownContent a {
+        color: var(--muted);
+        padding: 8px 12px;
+        text-decoration: none;
+        display: block;
+        font-size: 13.5px;
+        font-weight: 500;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .profileDropdownContent a:hover {
+        background-color: var(--card-hover);
+        color: var(--text);
+    }
+
+    .profileDropdownContent a.logoutLink {
+        color: #ef4444;
+    }
+
+    .profileDropdownContent a.logoutLink:hover {
+        background-color: #fef2f2;
+        color: #ef4444;
+    }
+
+    body.dark-mode .profileDropdownContent a.logoutLink:hover {
+        background-color: rgba(239, 68, 68, 0.15);
+    }
+</style>
 
 </head>
 
@@ -17,22 +350,22 @@
 </div>
 
 <header class="topBar">
-    <div class="logo"><a href="/">🎸 CifrasFlix</a></div>
-    <!-- Botão Entrar -->
+    <div class="logo"><a href="/">CifrasFlix</a></div>
+    
     <!-- Modal de Login -->
     <div id="loginModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Entrar</h2>
-        
-        <button class="login-option">👤 Entrar com e-mail e senha</button>
-        <button class="login-option">G Entrar com o Google</button>
-        <button class="login-option">f Entrar com o Facebook</button>
-        <button class="login-option"> Entrar com a Apple</button>
-        
-        <p><a class="backBtn" href="#">Esqueci minha senha</a></p>
-        <p>Não tem uma conta? </P><p><a class="backBtn" href="#">Cadastre-se</a></p>
-    </div>
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Entrar</h2>
+            
+            <button class="login-option">👤 Entrar com e-mail e senha</button>
+            <button class="login-option">G Entrar com o Google</button>
+            <button class="login-option">f Entrar com o Facebook</button>
+            <button class="login-option"> Entrar com a Apple</button>
+            
+            <p><a class="backBtn" href="#">Esqueci minha senha</a></p>
+            <p>Não tem uma conta? <a class="backBtn" href="#">Cadastre-se</a></p>
+        </div>
     </div>
  
     <nav class="menu">
@@ -40,33 +373,32 @@
         <a href="/flix-play">Flix Play</a>
         <a href="/daw">DAW</a>
         <a href="/playlists">Playlists</a>
-        <a href="/stats">Relatorios</a>
-         <a href="/albuns">Albuns</a>
-        <a href="/importar">Importar</a>
-        <a href="/atualizarfoto">Fotos</a>
-        <a href="/pegarfotos">Wallpapers</a>
+        <a href="/albuns">Álbuns</a>
         
-        <a href="/admin">Admin</a>
-        <a href="/mb_album">MusicBrainz</a>
-        <a href="/conversor">Conversor</a>
+        <div class="menuDropdown">
+            <button type="button" class="menuDropdownBtn" onclick="toggleDropdown(event)">Mais ▾</button>
+            <div class="menuDropdownContent">
+                <a href="/stats">Relatórios</a>
+                <a href="/importar">Importar</a>
+                <a href="/atualizarfoto">Fotos</a>
+                <a href="/mb_album">MusicBrainz</a>
+                <a href="/conversor">Conversor</a>
+                <a href="/admin">Admin</a>
+            </div>
+        </div>
     </nav>
-   <div class="busca-container">        
-    <input type="text" id="busca" placeholder="Buscar musica ou artista..." autocomplete="off">
-    <div id="resultado" class="list-container" style="display: none;"></div>
-</div>
-    
 
-   <button type="button" onclick="toggleDark()" class="darkToggle" aria-label="Alternar tema">
-    🌙
-    </button>    <button type="button" id="loginBtn" class="loginButton">Entrar</button>
+    <div class="busca-container">        
+        <input type="text" id="busca" placeholder="Buscar música ou artista..." autocomplete="off">
+        <div id="resultado" class="list-container" style="display: none;"></div>
+    </div>
+    
+    <button type="button" onclick="toggleDark()" class="darkToggle" aria-label="Alternar tema">🌙</button>
+    <button type="button" id="loginBtn" class="loginButton">Entrar</button>
 
 </header>
 
 <main>
-
-
-
-
 
 <link type="text/css" rel="stylesheet" href="http://jtab.tardate.com/css/jtab-helper.css"/>
 <script src="https://jtab.tardate.com/javascripts/jquery.js"></script>
@@ -74,3 +406,94 @@
 <script src="https://jtab.tardate.com/javascripts/jtab.js"></script>
 <script src="/static/js/app.js"></script>
 
+<script>
+// Click behavior for "Mais" and "Perfil" dropdowns
+function toggleDropdown(event) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const dropdown = btn.closest('.menuDropdown');
+    const content = dropdown.querySelector('.menuDropdownContent');
+    const isShowing = content.style.display === 'block';
+    
+    closeAllDropdowns();
+    
+    if (!isShowing) {
+        content.style.display = 'block';
+        btn.classList.add('active');
+    }
+}
+
+function toggleProfileDropdown(event) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const dropdown = btn.closest('.profileDropdown');
+    const content = dropdown.querySelector('.profileDropdownContent');
+    const isShowing = content.style.display === 'block';
+    
+    closeAllDropdowns();
+    
+    if (!isShowing) {
+        content.style.display = 'block';
+        btn.classList.add('active');
+    }
+}
+
+function closeAllDropdowns() {
+    document.querySelectorAll('.menuDropdownContent, .profileDropdownContent').forEach(d => {
+        d.style.display = 'none';
+    });
+    document.querySelectorAll('.menuDropdownBtn, .profileDropdownBtn').forEach(b => {
+        b.classList.remove('active');
+    });
+}
+
+// Close dropdowns when clicking anywhere outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menuDropdown') && !e.target.closest('.profileDropdown')) {
+        closeAllDropdowns();
+    }
+});
+
+// Setup hover handlers on desktop
+document.querySelectorAll('.menuDropdown, .profileDropdown').forEach(elem => {
+    elem.addEventListener('mouseenter', () => {
+        const content = elem.querySelector('.menuDropdownContent, .profileDropdownContent');
+        const btn = elem.querySelector('.menuDropdownBtn, .profileDropdownBtn');
+        if (content) {
+            content.style.display = 'block';
+        }
+        if (btn) {
+            btn.classList.add('active');
+        }
+    });
+    elem.addEventListener('mouseleave', () => {
+        const content = elem.querySelector('.menuDropdownContent, .profileDropdownContent');
+        const btn = elem.querySelector('.menuDropdownBtn, .profileDropdownBtn');
+        if (content) {
+            content.style.display = 'none';
+        }
+        if (btn) {
+            btn.classList.remove('active');
+        }
+    });
+});
+
+// Setup active menu links highlighting based on path
+(function() {
+    const path = window.location.pathname;
+    const menuLinks = document.querySelectorAll('header.topBar nav.menu a');
+    
+    menuLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+        
+        if (href === '/' && (path === '/' || path === '/home')) {
+            link.classList.add('active');
+        } else if (href === '/flix-play' && (path.startsWith('/flix-play') || path.startsWith('/tocador-gp4'))) {
+            link.classList.add('active');
+        } else if (href !== '/' && href !== '/flix-play' && path.startsWith(href)) {
+            link.classList.add('active');
+        }
+    });
+})();
+</script>

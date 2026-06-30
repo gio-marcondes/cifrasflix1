@@ -90,64 +90,13 @@ def _listar_versoes_gp(slug, artista_nome, titulo_referencia, current_url):
 
 
 def _gp_index_file_path():
-    return Path("static") / "guitarpro" / "_gp_index.txt"
+    from modules.routes_flixplay import _guitarpro_index_file_path
+    return _guitarpro_index_file_path()
 
 
 def _gp_index_refresh(max_age_seconds=21600):
-    import time
-
-    base_dir = Path("static") / "guitarpro"
-    idx_path = _gp_index_file_path()
-    extensoes = {".gp", ".gp3", ".gp4", ".gp5", ".gpx",".musicxml"}
-
-    if not base_dir.exists():
-        return
-
-    precisa_rebuild = True
-    if idx_path.exists():
-        try:
-            idade = time.time() - idx_path.stat().st_mtime
-            precisa_rebuild = idade > max_age_seconds
-        except Exception:
-            precisa_rebuild = True
-
-    if not precisa_rebuild:
-        return
-
-    linhas = []
-    for arquivo in base_dir.iterdir():
-        if not arquivo.is_file() or arquivo.suffix.lower() not in extensoes:
-            continue
-
-        stem = arquivo.stem.strip()
-        if " - " in stem:
-            artista_gp, titulo_gp = stem.split(" - ", 1)
-        elif "-" in stem:
-            artista_gp, titulo_gp = stem.split("-", 1)
-        else:
-            artista_gp, titulo_gp = "", stem
-
-        artista_norm = _normalizar_gp_nome(artista_gp)
-        titulo_norm = _normalizar_gp_nome(titulo_gp)
-        if not titulo_norm:
-            continue
-
-        linhas.append(
-            "\t".join(
-                [
-                    artista_norm,
-                    titulo_norm,
-                    arquivo.name,
-                    (artista_gp or "").strip().replace("\t", " "),
-                    (titulo_gp or "").strip().replace("\t", " "),
-                ]
-            )
-        )
-
-    try:
-        idx_path.write_text("\n".join(linhas), encoding="utf-8")
-    except Exception:
-        pass
+    from modules.routes_flixplay import _refresh_guitarpro_index_txt
+    _refresh_guitarpro_index_txt(max_age_seconds)
 
 
 def _gp_index_records():
@@ -300,6 +249,7 @@ def tocador_gp4(slug, uid):
     versoes = _listar_versoes_gp(slug, resolved.get("artist"), resolved["title"], current_version_url)
     return render_template(
         "player_gp4.html",
+        header_html=header("Tocador GP4").replace("<main>", ""),
         file_id=file_id,
         artist_slug=slug,
         slug=slug,
@@ -455,13 +405,45 @@ def gp_api_fretboard(slug, uid):
             }
         )
 
+    song = None
+    parse_error = None
     try:
         song = guitarpro.parse(str(arquivo))
     except Exception as exc:
+        parse_error = exc
+
+    if not song:
+        artist_norm = _normalizar_gp_nome(resolved.get("artist") or slug)
+        title_base_norm = _normalizar_gp_nome(_titulo_base_sem_versao(resolved.get("title") or ""))
+        if artist_norm and title_base_norm:
+            fallbacks = []
+            for rec in _gp_index_records():
+                rec_artist = rec.get("artist_norm")
+                rec_title_raw = rec.get("title_raw") or rec.get("title_norm") or ""
+                if rec_artist == artist_norm:
+                    rec_title_base = _normalizar_gp_nome(_titulo_base_sem_versao(rec_title_raw))
+                    if rec_title_base == title_base_norm:
+                        candidate_name = rec["file_name"]
+                        suffix = Path(candidate_name).suffix.lower()
+                        if suffix in {".gp5", ".gp4", ".gp3"}:
+                            fallbacks.append(candidate_name)
+
+            for fallback_name in fallbacks:
+                fallback_path = Path("static") / "guitarpro" / fallback_name
+                if fallback_path.exists() and fallback_path != arquivo:
+                    try:
+                        song = guitarpro.parse(str(fallback_path))
+                        if song:
+                            print(f"[Fretboard API] Fallback de {arquivo.name} para {fallback_name} funcionou!")
+                            break
+                    except Exception:
+                        pass
+
+    if not song:
         return jsonify(
             {
                 "available": False,
-                "message": f"Nao consegui ler as notas deste arquivo: {exc}",
+                "message": f"Nao consegui ler as notas deste arquivo (nem fallbacks): {parse_error}",
                 "tracks": [],
             }
         )

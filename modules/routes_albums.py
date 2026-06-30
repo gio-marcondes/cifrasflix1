@@ -19,7 +19,8 @@ from modules.config import (
     HEADERS_MB,
 )
 from modules.ui_helpers import fmt_int
-from modules.routes_main import _has_flixplayer_tab, pegar_foto_artista, extrair_tom_da_cifra
+from modules.routes_main import pegar_foto_artista, extrair_tom_da_cifra
+from modules.routes_flixplay import _has_flixplayer_tab
 
 albums_bp = Blueprint('albums', __name__)
 

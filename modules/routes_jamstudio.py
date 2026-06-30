@@ -32,7 +32,8 @@ def jam_studio():
             font-size: 28px;
             font-weight: 700;
             margin: 0;
-            background: linear-gradient(135deg, var(--teal) 0%, var(--blue) 100%);
+            color: #14b8a6;
+            background: linear-gradient(135deg, #14b8a6 0%, #3b82f6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -614,6 +615,17 @@ def jam_studio():
         .clearHistoryBtn:hover {
             color: var(--danger);
             border-color: var(--danger);
+        }
+
+        /* DARK MODE OVERRIDES FOR JAM STUDIO HEADER */
+        body.dark-mode .studioHeader h1 {
+            color: #2dd4bf !important;
+            background: linear-gradient(135deg, #2dd4bf 0%, #60a5fa 100%) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+        body.dark-mode .studioHeader p {
+            color: #94a3b8 !important;
         }
     </style>
 
@@ -2378,7 +2390,8 @@ def estilos_info():
         .estilosHeader h1 {
             font-size: 3rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--blue), var(--purple));
+            color: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
@@ -2459,9 +2472,47 @@ def estilos_info():
             letter-spacing: 0.5px;
         }
         .exemploChords {
-            font-weight: 700;
             color: var(--blue);
             font-size: 1rem;
+        }
+
+        /* DARK MODE STYLES FOR ESTILOS PAGE */
+        body.dark-mode .estilosContainer {
+            color: #e2e8f0;
+        }
+        body.dark-mode .estilosHeader p {
+            color: #94a3b8;
+        }
+        body.dark-mode .estilosHeader h1 {
+            color: #60a5fa !important;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+        body.dark-mode .estiloCard {
+            background: #1c1c1e;
+            color: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .estiloTitle {
+            color: #ffffff;
+        }
+        body.dark-mode .formulaBox {
+            background: #2c2c2e;
+            border-color: #3a3a3c;
+            color: #ff9f0a;
+        }
+        body.dark-mode .estiloDesc {
+            color: #94a3b8;
+        }
+        body.dark-mode .exemploBox {
+            background: #2c2c2e;
+        }
+        body.dark-mode .exemploTitle {
+            color: #ff9f0a;
+        }
+        body.dark-mode .exemploChords {
+            color: #64d2ff;
         }
     </style>
 

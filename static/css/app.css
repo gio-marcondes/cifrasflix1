@@ -2092,6 +2092,12 @@ body.dark-mode .artistAvatar {
     border-color: #bfdbfe;
 }
 
+.trackActionBtn.playerBtn {
+    color: #0284c7;
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+
 .trackActionBtn.tomBtn {
     color: var(--muted);
     background: #f9fafb;
@@ -2942,4 +2948,309 @@ body.dark-mode .lyricReader .lyricBox {
 body.dark-mode .moduleCard {
     background: #181818 !important;
     border-color: #262626 !important;
+}
+
+/* ==========================================
+   CIFRASFLIX DARK MODE OVERRIDES
+   ========================================== */
+
+/* 1. Global Dark Mode resets for panels */
+body.dark-mode .systemPanel,
+body.dark-mode .backBar {
+    color: #ffffff !important;
+}
+
+body.dark-mode .systemPanel h2 {
+    color: #ffffff !important;
+}
+
+body.dark-mode .systemPanel p.eyebrow {
+    color: #ff9f0a !important;
+}
+
+/* 2. Playlists Page Overrides */
+body.dark-mode .playlistsHero h1 {
+    color: #ffffff !important;
+}
+
+body.dark-mode .playlistsHero p {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .sectionTitle {
+    color: #ffffff !important;
+    border-bottom-color: #2c2c2e !important;
+}
+
+body.dark-mode .sectionTitle a {
+    background: #2c2c2e !important;
+    color: #ff9f0a !important;
+}
+
+body.dark-mode .playlistCard {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+}
+
+body.dark-mode .playlistCard:hover {
+    border-color: #ff9f0a !important;
+    box-shadow: 0 12px 30px rgba(255, 159, 10, 0.15) !important;
+}
+
+body.dark-mode .playlistMeta {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .playlistFooter {
+    border-top-color: #2c2c2e !important;
+}
+
+body.dark-mode .playlistFooter a {
+    color: #ff9f0a !important;
+}
+
+body.dark-mode .playlistCard a {
+    color: #ffffff !important;
+}
+
+body.dark-mode .playlistCard div {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .playlistCard span {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .playlistCard span.badge.pub {
+    background: #1e3a2f !important;
+    color: #34d399 !important;
+}
+
+body.dark-mode .playlistCard span.badge.priv {
+    background: #2c2c2e !important;
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .playlistCard div span[style*="color:#ff7a00"],
+body.dark-mode .playlistCard div span[style*="color: #ff7a00"] {
+    color: #ff9f0a !important;
+    background: #2c2c2e !important;
+}
+
+body.dark-mode .playlistCard div a[href*="/favoritar"] {
+    color: #ff453a !important;
+}
+
+body.dark-mode .empty-state,
+body.dark-mode div[style*="background:rgba(255,255,255,0.4)"] {
+    background: #1c1c1e !important;
+    color: #aeaeb2 !important;
+    border-color: #2c2c2e !important;
+}
+
+body.dark-mode div[style*="background:rgba(255,255,255,0.4)"] p {
+    color: #ffffff !important;
+}
+
+/* 3. Albums Listing Page Overrides */
+body.dark-mode .sortChips input[type="text"] {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .ordBtn {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .ordBtn:hover {
+    background: #2c2c2e !important;
+}
+
+body.dark-mode .ordBtn.active {
+    background: #ffffff !important;
+    color: #1c1c1e !important;
+    border-color: #ffffff !important;
+}
+
+body.dark-mode .albumCard {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+}
+
+body.dark-mode .albumCard:hover {
+    background: #2c2c2e !important;
+    border-color: #ff9f0a !important;
+    box-shadow: 0 10px 30px rgba(255, 159, 10, 0.15) !important;
+}
+
+body.dark-mode .albumTitle {
+    color: #ffffff !important;
+}
+
+body.dark-mode .albumYear {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .albumCover {
+    background: #2c2c2e !important;
+}
+
+body.dark-mode .pageInfo {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .pageBtn {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .pageBtn:hover {
+    background: #2c2c2e !important;
+}
+
+/* 4. Artist Discography Page Overrides */
+body.dark-mode .backBar {
+    border-bottom-color: #2c2c2e !important;
+}
+
+body.dark-mode .backBtn {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .backBtn:hover {
+    background: #2c2c2e !important;
+}
+
+body.dark-mode .artistCard {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .artistName {
+    color: #ffffff !important;
+}
+
+body.dark-mode .musicGrin h3 {
+    color: #ffffff !important;
+}
+
+/* 5. Album Details Page Overrides */
+body.dark-mode .albumDetailHero {
+    background: linear-gradient(180deg, #1c1c1e 0%, #111112 100%) !important;
+    border-bottom-color: #2c2c2e !important;
+}
+
+body.dark-mode .albumDetailCopy h1 {
+    color: #ffffff !important;
+}
+
+body.dark-mode .artistInlineLink {
+    color: #ff9f0a !important;
+}
+
+body.dark-mode .albumMetaPills span {
+    background: #2c2c2e !important;
+    color: #aeaeb2 !important;
+    border-color: #3a3a3c !important;
+}
+
+body.dark-mode .albumDescription {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .albumStatsGrid article {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+}
+
+body.dark-mode .albumStatsGrid article strong {
+    color: #ffffff !important;
+}
+
+body.dark-mode .albumStatsGrid article span {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .albumTracksPanel {
+    background: #1c1c1e !important;
+    border-color: #2c2c2e !important;
+}
+
+body.dark-mode .albumTrackRow {
+    border-bottom-color: #2c2c2e !important;
+}
+
+body.dark-mode .albumTrackRow:hover {
+    background: #2c2c2e !important;
+}
+
+body.dark-mode .trackNumber {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .trackMainLink {
+    color: #ffffff !important;
+}
+
+body.dark-mode .trackMainLink.only-lyric {
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .track-title small {
+    color: #8e8e93 !important;
+}
+
+body.dark-mode .trackActionBtn {
+    background: #2c2c2e !important;
+    border-color: #3a3a3c !important;
+    color: #aeaeb2 !important;
+}
+
+body.dark-mode .trackActionBtn:hover {
+    background: #3a3a3c !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .trackActionBtn.tomBtn {
+    background: #1e3a2f !important;
+    color: #30d158 !important;
+    border-color: #1e3a2f !important;
+}
+
+body.dark-mode .trackActionBtn.cifraBtn {
+    background: #3a1a00 !important;
+    color: #ff9f0a !important;
+    border-color: #3a1a00 !important;
+}
+
+body.dark-mode .trackActionBtn.playerBtn {
+    background: #0f1e36 !important;
+    color: #64d2ff !important;
+    border-color: #0f1e36 !important;
+}
+
+body.dark-mode .play-btn {
+    background: #2c2c2e !important;
+    border-color: #3a3a3c !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .play-btn:hover {
+    background: #3a3a3c !important;
+}
+
+body.dark-mode .play-btn.playing {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
 }

@@ -11,6 +11,7 @@ from modules.config import DB, connect_db, slugify, normalizar_slug, transpor_ac
 from modules.ui_helpers import home_dashboard_data, fmt_int
 
 main_bp = Blueprint('main', __name__)
+from modules.routes_flixplay import _has_flixplayer_tab
 
 def destacar_acordes(texto):
 
@@ -239,563 +240,12 @@ def home():
     return html
 
 
-@main_bp.route("/flix-play")
-def flix_play():
-    import html as html_escape
-    import random
-    q = (request.args.get("q") or "").strip()
-
-    def limpar_titulo_gp(texto):
-        valor = (texto or "").strip()
-        if not valor:
-            return ""
-        valor = re.sub(r"\(([^)]*?)\s+by\s+[^)]*\)", r"(\1)", valor, flags=re.IGNORECASE)
-        valor = re.sub(r"\s{2,}", " ", valor).strip()
-        return valor
-
-    def _carregar_gp_catalogo():
-        _refresh_guitarpro_index_txt()
-        idx_path = _guitarpro_index_file_path()
-        if not idx_path.exists():
-            return []
-
-        vistos = set()
-        catalogo = []
-        try:
-            conteudo = idx_path.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            return []
-
-        for linha in conteudo.splitlines():
-            if not linha.strip():
-                continue
-            partes = linha.split("\t")
-            if len(partes) < 5:
-                continue
-
-            artista_norm = (partes[0] or "").strip()
-            musica_norm = (partes[1] or "").strip()
-            file_name = (partes[2] or "").strip()
-            artista_raw = (partes[3] or "").strip()
-            musica_raw = (partes[4] or "").strip()
-            if not musica_norm or not file_name:
-                continue
-
-            chave = (artista_norm, musica_norm)
-            if chave in vistos:
-                continue
-            vistos.add(chave)
-
-            catalogo.append(
-                {
-                    "artista_nome": artista_raw or artista_norm.title(),
-                    "musica_titulo": limpar_titulo_gp(musica_raw or musica_norm.title()),
-                    "artista_norm": artista_norm,
-                    "musica_norm": musica_norm,
-                }
-            )
-
-        return catalogo
-
-    catalogo_gp = _carregar_gp_catalogo()
-
-    sugestoes = random.sample(catalogo_gp, min(6, len(catalogo_gp))) if catalogo_gp else []
-
-    def _card_html(row):
-        titulo = (row["musica_titulo"] or "").strip()
-        artista_nome = (row["artista_nome"] or "").strip()
-        artista_slug = normalizar_slug(artista_nome)
-        lyric_link = f"/letra/{artista_slug}/{normalizar_slug(titulo)}"
-        play_link = f"/tocador-gp4/{artista_slug}/{normalizar_slug(titulo)}"
-        train_link = f"/treinar/{artista_slug}/{normalizar_slug(titulo)}"
-        destino = play_link
-        acao_html = f'<a class="flixCardAction" href="{play_link}">Tocar no FlixPlayer</a>'
-
-        return f"""
-        <article class="flixSongCard" role="button" tabindex="0" onclick="location.href='{destino}'" onkeydown="if(event.key==='Enter'||event.key===' '){{event.preventDefault();location.href='{destino}'}}">
-            <div class="flixSongInfo">
-                <p class="eyebrow">{html_escape.escape(artista_nome)}</p>
-                <h3><a href="{play_link}">{html_escape.escape(titulo)}</a></h3>
-                <div class="flixCardLinks">
-                    {acao_html}
-                    <a class="flixCardAction ghost" href="{lyric_link}">Ver letra</a>
-                    <a class="flixCardAction alt" href="{train_link}">Treinar</a>
-                </div>
-            </div>
-        </article>
-        """
-
-    html = header("Flix Play") + f"""
-    <style>
-    .flixHero {{
-        margin-top: 18px;
-        padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #e5e7eb;
-        background: radial-gradient(circle at 16% -20%, rgba(255, 122, 0, 0.18), transparent 45%), #ffffff;
-    }}
-    .flixHero h1 {{
-        margin: 0;
-        font-size: clamp(30px, 4vw, 48px);
-    }}
-    .flixHero p {{
-        margin: 10px 0 0;
-        color: #6b7280;
-        max-width: 760px;
-    }}
-    .flixSearchBar {{
-        margin-top: 18px;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
-    }}
-    .flixSearchBar input {{
-        height: 46px;
-            border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 0 14px;
-        font-size: 15px;
-            background: var(--bg);
-            color: var(--text);
-    }}
-    .flixSearchBar button {{
-        height: 46px;
-        border-radius: 12px;
-            border: 1px solid var(--accent);
-            background: var(--accent);
-            color: #fff;
-        font-weight: 800;
-        padding: 0 18px;
-        cursor: pointer;
-    }}
-    .flixQuickActions {{
-        margin-top: 10px;
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }}
-    .flixQuickBtn {{
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 34px;
-        border-radius: 999px;
-        border: 1px solid #cbd5e1;
-        background: #f8fafc;
-        color: #334155;
-        padding: 0 12px;
-        font-size: 12px;
-        font-weight: 800;
-        text-decoration: none;
-    }}
-    .flixSection {{
-        margin-top: 22px;
-    }}
-    .flixSuggestionsSection {{
-        border: 1px solid #c7d2fe;
-        border-radius: 18px;
-        padding: 16px;
-        background: linear-gradient(160deg, #eef2ff 0%, #f8fafc 52%, #ecfeff 100%);
-    }}
-    .flixSuggestionsSection .sectionHeader h2 {{
-        color: #312e81;
-    }}
-    .flixSuggestionsSection .eyebrow {{
-        color: #4338ca;
-        font-weight: 800;
-        letter-spacing: .04em;
-    }}
-    .flixSuggestionsSection .flixSongCard {{
-        border-color: #c7d2fe;
-        background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-        box-shadow: 0 8px 22px rgba(79, 70, 229, 0.10);
-    }}
-    .flixSuggestionsSection .flixSongCard:hover {{
-        border-color: #6366f1;
-        box-shadow: 0 12px 26px rgba(79, 70, 229, 0.16);
-    }}
-    .flixSuggestionsSection .flixCardAction {{
-        border-color: #818cf8;
-        background: #eef2ff;
-        color: #3730a3;
-    }}
-    .flixSuggestionsSection .flixCardAction.ghost {{
-        border-color: #c7d2fe;
-        background: #ffffff;
-        color: #312e81;
-    }}
-    .flixGrid {{
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 12px;
-    }}
-    .flixSongCard {{
-        display: block;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        background: #ffffff;
-        padding: 12px;
-        cursor: pointer;
-        transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
-    }}
-    .flixSongCard:hover {{
-        border-color: #fdba74;
-        transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-    }}
-    .flixSongInfo h3 {{
-        margin: 0;
-        font-size: 17px;
-        line-height: 1.25;
-    }}
-    .flixSongInfo h3 a {{
-        color: inherit;
-        text-decoration: none;
-    }}
-    .flixSongInfo .eyebrow {{
-        margin: 0 0 5px;
-    }}
-    .flixSearchSection .flixSongCard.withThumb {{
-        display: grid;
-        grid-template-columns: 60px minmax(0, 1fr);
-        gap: 12px;
-        align-items: center;
-    }}
-    .flixSearchThumb {{
-        width: 60px;
-        height: 60px;
-        border-radius: 10px;
-        object-fit: cover;
-        border: 1px solid #dbeafe;
-        background: #f8fafc;
-    }}
-    .flixAlbumName {{
-        margin: 6px 0 0;
-            color: var(--muted);
-        font-size: 13px;
-    }}
-    .flixCardLinks {{
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 10px;
-    }}
-    .flixCardAction {{
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 32px;
-        border-radius: 999px;
-        border: 1px solid #fdba74;
-        background: #fff7ed;
-        color: #9a3412;
-        padding: 0 10px;
-        font-size: 12px;
-        font-weight: 800;
-        text-decoration: none;
-    }}
-    .flixCardAction.ghost {{
-        border-color: #cbd5e1;
-        background: #ffffff;
-        color: #334155;
-    }}
-    .flixCardAction.alt {{
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        color: #334155;
-    }}
-    .flixEmpty {{
-        border: 1px dashed #cbd5e1;
-        border-radius: 12px;
-        padding: 14px;
-        color: #64748b;
-        background: #f8fafc;
-    }}
-    @media (max-width: 720px) {{
-        .flixSearchBar {{
-            grid-template-columns: 1fr;
-        }}
-    }}
-    </style>
-
-    <section class="flixHero">
-        <p class="eyebrow">Flix Play</p>
-        <h1>Bem vindo ao Flix Play</h1>
-        <p>Digite uma musica ou artista para aprender a tocar.</p>
-        <form class="flixSearchBar" id="flixSearchForm" onsubmit="return false;">
-            <input type="text" id="flixSearchInput" placeholder="Ex: Animals, Maroon 5, The Kill..." autocomplete="off" value="{html_escape.escape(q)}">
-            <button type="button" id="flixSearchBtn">Buscar</button>
-        </form>
-        <div class="flixQuickActions">
-            <a class="flixQuickBtn" href="/treinar/">Treinar Piano</a>
-        </div>
-    </section>
-    """
-
-    html += """
-    <section class="flixSection flixSearchSection" id="flixSearchSection" style="display:none;">
-        <div class="sectionHeader">
-            <div>
-                <p class="eyebrow">Resultados</p>
-                <h2 id="flixSearchTitle">Busca</h2>
-            </div>
-        </div>
-        <div class="flixGrid" id="flixSearchGrid"></div>
-    """
-
-    html += """
-        </div>
-    </section>
-    """
-
-    html += """
-    <section class="flixSection flixSuggestionsSection">
-        <div class="sectionHeader">
-            <div>
-                <p class="eyebrow">Sugestoes</p>
-                <h2>Comece por aqui</h2>
-            </div>
-        </div>
-        <div class="flixGrid">
-    """
-
-    if sugestoes:
-        for row in sugestoes:
-            html += _card_html(row)
-    else:
-        html += '<div class="flixEmpty">Nenhuma sugestao GP encontrada no indice.</div>'
-
-    html += """
-        </div>
-    </section>
-        <script>
-        (function () {
-            const input = document.getElementById("flixSearchInput");
-            const btn = document.getElementById("flixSearchBtn");
-            const section = document.getElementById("flixSearchSection");
-            const grid = document.getElementById("flixSearchGrid");
-            const title = document.getElementById("flixSearchTitle");
-
-            if (!input || !btn || !section || !grid || !title) return;
-
-            const esc = (v) => String(v || "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/\"/g, "&quot;")
-                .replace(/'/g, "&#39;");
-
-            function card(item) {
-                const hasThumb = !!item.album_thumb;
-                const albumLine = item.album_name ? `<p class="flixAlbumName">${esc(item.album_name)}</p>` : "";
-                return `
-                    <article class="flixSongCard ${hasThumb ? "withThumb" : ""}" role="button" tabindex="0" onclick="location.href='${esc(item.play_url)}'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='${esc(item.play_url)}'}">
-                        ${hasThumb ? `<img class="flixSearchThumb" src="${esc(item.album_thumb)}" alt="${esc(item.album_name || item.title)}">` : ""}
-                        <div class="flixSongInfo">
-                            <p class="eyebrow">${esc(item.artist)}</p>
-                            <h3><a href="${esc(item.play_url)}">${esc(item.title)}</a></h3>
-                            ${albumLine}
-                            <div class="flixCardLinks">
-                                <a class="flixCardAction" href="${esc(item.play_url)}">Tocar no FlixPlayer</a>
-                                <a class="flixCardAction ghost" href="${esc(item.lyric_url)}">Ver letra</a>
-                                <a class="flixCardAction alt" href="${esc(item.train_url)}">Treinar</a>
-                            </div>
-                        </div>
-                    </article>
-                `;
-            }
-
-            async function runSearch() {
-                const q = (input.value || "").trim();
-                if (!q) {
-                    section.style.display = "none";
-                    grid.innerHTML = "";
-                    return;
-                }
-
-                title.textContent = `Busca por "${q}"`;
-                section.style.display = "block";
-                grid.innerHTML = '<div class="flixEmpty">Buscando...</div>';
-
-                try {
-                    const r = await fetch(`/api/flix-play/search?q=${encodeURIComponent(q)}&limit=10`);
-                    const data = await r.json();
-                    const items = Array.isArray(data.results) ? data.results : [];
-                    if (!items.length) {
-                        grid.innerHTML = '<div class="flixEmpty">Nada encontrado para essa busca. Tente outro termo.</div>';
-                        return;
-                    }
-                    grid.innerHTML = items.map(card).join("");
-                } catch (_) {
-                    grid.innerHTML = '<div class="flixEmpty">Falha ao buscar agora. Tente novamente.</div>';
-                }
-            }
-
-            let timer = null;
-            input.addEventListener("input", () => {
-                clearTimeout(timer);
-                timer = setTimeout(runSearch, 220);
-            });
-            btn.addEventListener("click", runSearch);
-            input.addEventListener("keydown", (ev) => {
-                if (ev.key === "Enter") {
-                    ev.preventDefault();
-                    runSearch();
-                }
-            });
-
-            if ((input.value || "").trim()) {
-                runSearch();
-            }
-        })();
-        </script>
-    </main>
-    """
-
-    return html
 
 def titulo_base(titulo):
     return re.sub(r'\s*\(.*?\)', '', titulo).strip().lower()
 
 
-_GUITARPRO_INDEX_CACHE = None
-_GUITARPRO_INDEX_CACHE_MTIME = None
 
-
-def _normalizar_guitarpro_nome(texto):
-    import unicodedata
-
-    if not texto:
-        return ""
-
-    ascii_text = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
-    ascii_text = ascii_text.lower().strip()
-    ascii_text = re.sub(r"[\'\u00b4`]+", "", ascii_text)
-    ascii_text = re.sub(r"\s*\(.*?\)", " ", ascii_text)
-    return re.sub(r"[^a-z0-9]+", " ", ascii_text).strip()
-
-
-def _guitarpro_index_file_path():
-    return Path("static") / "guitarpro" / "_gp_index.txt"
-
-
-def _refresh_guitarpro_index_txt(max_age_seconds=21600):
-    import time
-
-    base_dir = Path("static") / "guitarpro"
-    idx_path = _guitarpro_index_file_path()
-    extensoes = {".gp", ".gp3", ".gp4", ".gp5", ".gpx"}
-
-    if not base_dir.exists():
-        return
-
-    precisa_rebuild = True
-    if idx_path.exists():
-        try:
-            idade = time.time() - idx_path.stat().st_mtime
-            precisa_rebuild = idade > max_age_seconds
-        except Exception:
-            precisa_rebuild = True
-
-    if not precisa_rebuild:
-        return
-
-    linhas = []
-    for arquivo in base_dir.iterdir():
-        if not arquivo.is_file() or arquivo.suffix.lower() not in extensoes:
-            continue
-
-        stem = arquivo.stem.strip()
-        if " - " in stem:
-            artista_nome, musica_nome = stem.split(" - ", 1)
-        elif "-" in stem:
-            artista_nome, musica_nome = stem.split("-", 1)
-        else:
-            artista_nome, musica_nome = "", stem
-
-        artista_norm = _normalizar_guitarpro_nome(artista_nome)
-        musica_norm = _normalizar_guitarpro_nome(musica_nome)
-        if not musica_norm:
-            continue
-
-        linhas.append(
-            "\t".join(
-                [
-                    artista_norm,
-                    musica_norm,
-                    arquivo.name,
-                    (artista_nome or "").strip().replace("\t", " "),
-                    (musica_nome or "").strip().replace("\t", " "),
-                ]
-            )
-        )
-
-    try:
-        idx_path.write_text("\n".join(linhas), encoding="utf-8")
-    except Exception:
-        pass
-
-
-def _guitarpro_index():
-    global _GUITARPRO_INDEX_CACHE, _GUITARPRO_INDEX_CACHE_MTIME
-
-    _refresh_guitarpro_index_txt()
-    idx_path = _guitarpro_index_file_path()
-    index = {}
-
-    if not idx_path.exists():
-        _GUITARPRO_INDEX_CACHE = index
-        _GUITARPRO_INDEX_CACHE_MTIME = None
-        return _GUITARPRO_INDEX_CACHE
-
-    try:
-        mtime = idx_path.stat().st_mtime
-    except Exception:
-        mtime = None
-
-    if _GUITARPRO_INDEX_CACHE is not None and _GUITARPRO_INDEX_CACHE_MTIME == mtime:
-        return _GUITARPRO_INDEX_CACHE
-
-    try:
-        conteudo = idx_path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        conteudo = ""
-
-    for linha in conteudo.splitlines():
-        if not linha.strip():
-            continue
-        partes = linha.split("\t")
-        if len(partes) < 2:
-            continue
-        artista_norm = (partes[0] or "").strip()
-        musica_norm = (partes[1] or "").strip()
-        if not artista_norm or not musica_norm:
-            continue
-        index.setdefault(artista_norm, set()).add(musica_norm)
-
-    _GUITARPRO_INDEX_CACHE = index
-    _GUITARPRO_INDEX_CACHE_MTIME = mtime
-    return _GUITARPRO_INDEX_CACHE
-
-
-def _has_flixplayer_tab(artista_nome, musica_titulo):
-    tracks = _guitarpro_index().get(_normalizar_guitarpro_nome(artista_nome), set())
-    if not tracks:
-        return False
-
-    titulo_norm = _normalizar_guitarpro_nome(musica_titulo)
-    titulo_base_norm = _normalizar_guitarpro_nome(titulo_base(musica_titulo))
-
-    if titulo_norm in tracks or titulo_base_norm in tracks:
-        return True
-
-    for track_norm in tracks:
-        if titulo_norm and (titulo_norm in track_norm or track_norm in titulo_norm):
-            return True
-        if titulo_base_norm and (titulo_base_norm in track_norm or track_norm in titulo_base_norm):
-            return True
-
-    return False
 
 
 
@@ -884,10 +334,10 @@ def artista(slug):
             agrupadas[base]["count"] += 1
 
     musicas = list(agrupadas.values())
-    if ordem == "flixplayer":
-        for m in musicas:
-            m["has_player"] = _has_flixplayer_tab(nome, m["titulo"])
+    for m in musicas:
+        m["has_player"] = _has_flixplayer_tab(nome, m["titulo"])
 
+    if ordem == "flixplayer":
         musicas.sort(
             key=lambda m: (
                 not m.get("has_player", False),
@@ -972,6 +422,10 @@ def artista(slug):
     if musicas_exibir:
         for i, m in enumerate(musicas_exibir, start=1 + offset):
             badge = f'<span class="versaoBadge">+{m["count"]}</span>' if m["count"] > 0 else ""
+            flixplay_btn = ""
+            if m.get("has_player"):
+                flixplay_btn = f'<a class="trackActionBtn playerBtn" href="/tocador-gp4/{slug}/{m["uid"]}" title="Abrir no FlixPlayer">FlixPlay</a>'
+
             html += f"""
             <div class="musicRow artistTrackRow">
                 <div class="musicIndex">{i:02d}</div>
@@ -981,6 +435,7 @@ def artista(slug):
                 <div class="artistTrackActions">
                     <a class="trackActionBtn cifraBtn" href="/artista/{slug}/{m["uid"]}" title="Ver cifra">Cifra</a>
                     <a class="trackActionBtn letraBtn" href="/letra/{slug}/{m["slug"]}" title="Ver letra">Letra</a>
+                    {flixplay_btn}
                 </div>
             </div>
             """
@@ -1147,6 +602,8 @@ def musica(slug, uid):
         artista_slug
     ) = musica
 
+    has_player = _has_flixplayer_tab(artista_nome, titulo)
+
     c.execute(
         "UPDATE musicas SET views=views+1 WHERE id=?",
         (musica_id,)
@@ -1164,10 +621,10 @@ def musica(slug, uid):
     playlist_selector_html = ""
     if playlists:
         playlist_selector_html = f"""
-        <form method="POST" action="/painel/playlist/adicionar" style="margin-top: 10px;">
+        <form method="POST" action="/painel/playlist/adicionar" style="margin: 0; width: 100%;">
             <input type="hidden" name="musica_id" value="{musica_id}" />
-            <select name="playlist_id" onchange="this.form.submit()" autocomplete="off" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; font-weight: bold; color: #475569; font-size: 13px; cursor: pointer; outline: none; box-sizing: border-box;">
-                <option value="" selected>➕ Adicionar a Playlist...</option>
+            <select name="playlist_id" onchange="this.form.submit()" autocomplete="off" style="width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; font-weight: bold; color: #475569; font-size: 12px; cursor: pointer; outline: none; box-sizing: border-box; height: 34px;">
+                <option value="" selected>➕ Playlist...</option>
                 {playlist_options}
             </select>
         </form>
@@ -1199,7 +656,9 @@ def musica(slug, uid):
     video_url = buscar_video_youtube(artista_nome, titulo)
 
     # extrai o ID do vídeo
-    video_id = video_url.split("v=")[-1]
+    video_id = ""
+    if video_url:
+        video_id = video_url.split("v=")[-1]
 
     iframe_video = f'''
     <iframe id="ytplayer"
@@ -1207,7 +666,7 @@ def musica(slug, uid):
             frameborder="0"
             allowfullscreen>
     </iframe>
-    '''
+    ''' if video_id else '<p style="color: #6b7280; font-size: 13px; text-align: center; padding: 20px;">Vídeo do YouTube não encontrado</p>'
 
     conteudo = transpor_acordes(conteudo, semitons)
 
@@ -1226,7 +685,92 @@ def musica(slug, uid):
     conteudo = destacar_acordes(conteudo)
 
     html = header(titulo) + f"""
-  <style>main{{
+  <style>
+        .scrollProgressBar {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 4px;
+            background: #ff7a00;
+            z-index: 9999999;
+            transition: width 0.1s ease;
+        }}
+        .flixplayBadge {{
+            transition: all 0.15s ease;
+        }}
+        .flixplayBadge:hover {{
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 122, 0, 0.35) !important;
+            filter: brightness(1.05);
+        }}
+        @media print {{
+            header.topBar,
+            .backWrapper,
+            .songControls,
+            .songVideo,
+            #loadingOverlay,
+            .scrollProgressBar {{
+                display: none !important;
+            }}
+            .songLayout {{
+                display: block !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
+            .songCenter {{
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
+            pre.cifraBox {{
+                border: none !important;
+                padding: 0 !important;
+                font-size: 14pt !important;
+                line-height: 1.6 !important;
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+            }}
+            body {{
+                background: white !important;
+                color: black !important;
+            }}
+        }}
+        .zoomPanel {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }}
+        .zoomBtn {{
+            flex: 1;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }}
+        .zoomBtn:hover {{
+            background: #f3f4f6;
+        }}
+        .zoomValue {{
+            font-weight: bold;
+            font-size: 13px;
+            color: #4b5563;
+            min-width: 40px;
+            text-align: center;
+        }}
+  main{{
     
     width:100%;
     max-width:none;   /* 🔥 ESSENCIAL */
@@ -1398,14 +942,25 @@ def musica(slug, uid):
             max-width:none;   /* 🔥 MUITO IMPORTANTE */
         }}
                 /* ===== VIDEO ===== */
-                .songVideo{{
-                    position:sticky;
-                    top:90px;
-                }}
         .songVideo{{
             position:sticky;
             top:90px;
             max-width:300px;
+            max-height: calc(100vh - 110px);
+            overflow-y: auto;
+            
+            scrollbar-width: thin;
+            scrollbar-color: #ff7a00 #ffffff;
+        }}
+        .songVideo::-webkit-scrollbar {{
+            width: 6px;
+        }}
+        .songVideo::-webkit-scrollbar-track {{
+            background: #ffffff;
+        }}
+        .songVideo::-webkit-scrollbar-thumb {{
+            background-color: #ff7a00;
+            border-radius: 3px;
         }}
         .videoWrapper{{
             background:#ffffff;
@@ -1499,6 +1054,9 @@ def musica(slug, uid):
             border-color:#9ca3af;
             box-shadow:0 0 0 3px rgba(156,163,175,.18);
         }}
+        .topBar {{
+            z-index: 999999 !important;
+        }}
         /* ===== VOLTAR ===== */
         .backWrapper{{
             margin-bottom:16px;
@@ -1506,13 +1064,79 @@ def musica(slug, uid):
         .songControls {{
             position: sticky;
             top: 90px;
-            max-width: 360px;
-                         /* ajuste conforme quiser */
-            background: #f4f4f4;
+            max-width: 280px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             box-sizing: border-box;
-            position: sticky;         /* faz ficar fixo ao rolar */
-         
-            overflow-y: auto;         /* rolagem interna do menu se necessário */
+        }}
+        
+        .songControls .controlCard {{
+            background: none !important;
+            border: none !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            margin-bottom: 0 !important;
+        }}
+        
+        .minBtn {{
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            color: #4b5563;
+        }}
+        .minBtn:hover {{
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }}
+        .minBtn.active {{
+            background: #ff7a00;
+            color: #fff;
+            border-color: #ff7a00;
+        }}
+        
+        .controlRow {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }}
+        
+        .controlRowLabel {{
+            font-size: 11px;
+            font-weight: bold;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }}
+        
+        .controlSection {{
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }}
+        .controlSection:last-child {{
+            border-bottom: none;
+            padding-bottom: 0;
         }}
         .play-btn {{
             width: 34px;
@@ -1595,6 +1219,7 @@ def musica(slug, uid):
 
         </script>
 
+        <div class="scrollProgressBar" id="scrollProgressBar"></div>
         <div class="backWrapper">
             <button class="backBtn" onclick="location.href='/artista/{slug}'">
                 ← Voltar para músicas
@@ -1605,60 +1230,91 @@ def musica(slug, uid):
 
             <!-- 🎛️ CONTROLES ESQUERDA -->
             <aside class="songControls">
-                <div class="controlCard">
-                    <div class="controlTitle">🎸 Versões</div>
-                <div class="selectWrapper">
-                    <select class="versionSelect"
-                        onchange="trocarVersao(this.value)">
-                        {''.join([
-                            f"<option value='{v_uid}' {'selected' if v_uid==uid else ''}>{v_titulo}</option>"
-                            for v_uid, v_titulo in versoes
-                        ])}
-                    </select>
+                
+                <!-- VERSÕES -->
+                <div class="controlSection">
+                    <div class="controlRowLabel">Versões</div>
+                    <div class="selectWrapper">
+                        <select class="versionSelect" onchange="trocarVersao(this.value)" style="margin-top: 0; padding: 6px 12px; font-size: 13px; height: 34px;">
+                            {''.join([
+                                f"<option value='{v_uid}' {'selected' if v_uid==uid else ''}>{v_titulo}</option>"
+                                for v_uid, v_titulo in versoes
+                            ])}
+                        </select>
                     </div>
                 </div>
-                <div class="controlCard chordControlCard">
-                    <div class="controlTitle">Tom da cifra</div>
 
-                    <div class="transposePanel">
-                        <button class="controlBtn toneStep" onclick="transpor(-1)">-</button>
-                        <div class="transposeState">
-                            <strong id="currentKeyLabel" data-original-key="{tom_musica}">{tom_musica}</strong>
-                            <span id="transposeLabel">{semitons:+d} semitons</span>
+                <!-- TOM DA CIFRA -->
+                <div class="controlSection">
+                    <div class="controlRowLabel">Tom & Ações</div>
+                    
+                    <!-- Transposição -->
+                    <div class="controlRow" style="justify-content: space-between;">
+                        <button class="minBtn" style="width: 32px; height: 32px;" onclick="transpor(-1)">-</button>
+                        <div style="text-align: center; flex: 1;">
+                            <strong id="currentKeyLabel" data-original-key="{tom_musica}" style="font-size: 15px; color: #111827;">{tom_musica}</strong>
+                            <span id="transposeLabel" style="font-size: 10px; display: block; color: #6b7280;">{semitons:+d} semitons</span>
                         </div>
-                        <button class="controlBtn toneStep" onclick="transpor(1)">+</button>
+                        <button class="minBtn" style="width: 32px; height: 32px;" onclick="transpor(1)">+</button>
+                        <button class="minBtn" style="width: 32px; height: 32px;" title="Restaurar Tom" onclick="resetTransposicao()">↺</button>
                     </div>
-                    <button class="controlBtn resetToneBtn" onclick="resetTransposicao()" style="width: 100%; margin-top: 10px; margin-bottom: 10px;">
-                        Restaurar original
-                    </button>
 
-                    <button class="controlBtn favoriteWide"
-                        onclick="location.href='/favoritar/{musica_id}'"
-                        style="background: {'#ffebe0' if is_favorited else '#fff'}; color: {'#ff7a00' if is_favorited else '#4b5563'}; border-color: {'#ff7a00' if is_favorited else '#d1d5db'}; font-weight: bold;">
-                        {'❤️ Curtida' if is_favorited else '🤍 Curtir Cifra'}
-                    </button>
-                    
-                    {playlist_selector_html}
-                    
-                    <button class="controlBtn" id="leftHandedToggleBtn" onclick="toggleLeftHanded()" style="width: 100%; margin-top: 10px; background: #374151; color: #fff;">
-                        Modo Canhoto: Desativado
-                    </button>
+                    <!-- Curtir & Playlist -->
+                    <div class="controlRow" style="margin-top: 6px;">
+                        <button class="minBtn favoriteBtnCompact" 
+                                onclick="location.href='/favoritar/{musica_id}'" 
+                                title="{'Remover dos Favoritos' if is_favorited else 'Curtir Cifra'}"
+                                style="width: 40px; height: 34px; font-size: 16px; background: {'#ffebe0' if is_favorited else '#fff'}; border-color: {'#ff7a00' if is_favorited else '#e5e7eb'};">
+                            {'❤️' if is_favorited else '🤍'}
+                        </button>
+                        <div class="selectWrapper" style="flex: 1;">
+                            {playlist_selector_html}
+                        </div>
+                    </div>
+
+                    <!-- Canhoto & Simplificar Toggles -->
+                    <div class="controlRow" style="margin-top: 6px;">
+                        <button class="minBtn" id="leftHandedToggleBtn" onclick="toggleLeftHanded()" style="flex: 1; height: 30px; font-size: 11px;">
+                            Canhoto
+                        </button>
+                        <button class="minBtn" id="simplifyToggleBtn" onclick="toggleSimplificar()" style="flex: 1; height: 30px; font-size: 11px;">
+                            Simplificar
+                        </button>
+                    </div>
                 </div>
 
-                <div class="controlCard chordControlCard">
-                    <div class="controlTitle">Rolagem</div>
-
-                    <button class="controlBtn autoScrollPrimary" onclick="toggleScroll()" id="scrollBtn">
-                        Iniciar autorrolagem
-                    </button>
-
-                    <div class="speedBox autoScrollBox">
-                        <span>Velocidade</span>
-                        <button class="controlBtn" onclick="changeSpeed(-0.1)">-</button>
-                        <span id="speedLabel">1.0x</span>
-                        <button class="controlBtn" onclick="changeSpeed(0.1)">+</button>
+                <!-- AUTOROLAGEM -->
+                <div class="controlSection">
+                    <div class="controlRowLabel">Rolagem</div>
+                    <div class="controlRow">
+                        <button class="minBtn autoScrollPrimary" onclick="toggleScroll()" id="scrollBtn" style="flex: 1; height: 34px; font-size: 12px; background: #ffebe0; color: #ff7a00; border-color: #ffebe0;">
+                            ▶ Iniciar
+                        </button>
+                        <div class="controlRow" style="width: auto; gap: 4px;">
+                            <button class="minBtn" style="width: 26px; height: 26px; font-size: 10px;" onclick="changeSpeed(-0.1)">-</button>
+                            <span id="speedLabel" style="font-size: 11px; font-weight: bold; min-width: 32px; text-align: center; color: #4b5563;">1.0x</span>
+                            <button class="minBtn" style="width: 26px; height: 26px; font-size: 10px;" onclick="changeSpeed(0.1)">+</button>
+                        </div>
                     </div>
-                    <div class="autoScrollHint">Espaco pausa/continua. Esc interrompe.</div>
+                </div>
+
+                <!-- VISUALIZAÇÃO & IMPRESSÃO -->
+                <div class="controlSection" style="border-bottom: none; padding-bottom: 0;">
+                    <div class="controlRowLabel">Visualização</div>
+                    <div class="controlRow">
+                        <!-- Zoom -->
+                        <div class="controlRow" style="flex: 1; gap: 4px;">
+                            <button class="minBtn" style="width: 26px; height: 26px; font-size: 10px;" onclick="changeFontSize(-1)">A-</button>
+                            <span id="fontSizeLabel" style="font-size: 11px; font-weight: bold; min-width: 32px; text-align: center; color: #4b5563;">15px</span>
+                            <button class="minBtn" style="width: 26px; height: 26px; font-size: 10px;" onclick="changeFontSize(1)">A+</button>
+                            <button class="minBtn" style="width: 26px; height: 26px; font-size: 10px;" title="Reset Fonte" onclick="resetFontSize()">↺</button>
+                        </div>
+                        
+                        <!-- Print -->
+                        <button class="minBtn" onclick="window.print()" title="Imprimir Cifra" style="width: 40px; height: 34px; font-size: 15px;">
+                            🖨️
+                        </button>
+                    </div>
                 </div>
 
             </aside>
@@ -1666,7 +1322,10 @@ def musica(slug, uid):
             <!-- 🎸 CIFRA CENTRAL -->
             <main class="songCenter">
                 <h2 class="songTitle">{titulo} </h2>
-                <p><a class="chord" href="/artista/{artista_slug}">{artista_nome}</a></p>
+                <p style="margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <a class="chord" href="/artista/{artista_slug}" style="font-weight: 700;">{artista_nome}</a>
+                    {f'<a class="flixplayBadge" href="/tocador-gp4/{artista_slug}/{uid}" style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #ff7a00 0%, #ff9500 100%); color: white; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(255, 122, 0, 0.2); transition: all 0.15s ease;"><span style="font-size: 12px;">🎸</span> FlixPlay Disponível</a>' if has_player else ''}
+                </p>
                 <div class="musicMetaGrid">
                     <div class="musicMetaCard">
                         <span>Capotraste</span>
@@ -2044,18 +1703,33 @@ def musica(slug, uid):
         let scrolling = false;
         let scrollFrame = null;
         let lastScrollTs = 0;
+        let currentScrollY = window.scrollY;
 
         function updateScrollButton(){{
             const btn = document.getElementById("scrollBtn");
-            if (btn) btn.innerText = scrolling ? "Pausar autorrolagem" : "Iniciar autorrolagem";
+            if (btn) {{
+                btn.innerText = scrolling ? "⏸ Pausar" : "▶ Iniciar";
+                btn.classList.toggle("active", scrolling);
+            }}
         }}
 
         function scrollStep(ts){{
             if (!scrolling) return;
-            if (!lastScrollTs) lastScrollTs = ts;
+            if (!lastScrollTs) {{
+                lastScrollTs = ts;
+                currentScrollY = window.scrollY;
+            }}
             const delta = Math.min(48, ts - lastScrollTs);
             lastScrollTs = ts;
-            window.scrollBy(0, scrollSpeed * delta / 45);
+
+            // Sync currentScrollY if the user scrolled manually
+            if (Math.abs(window.scrollY - currentScrollY) > 5) {{
+                currentScrollY = window.scrollY;
+            }}
+
+            const scrollDistance = scrollSpeed * delta * 0.022; // Smooth subpixel speed multiplier
+            currentScrollY += scrollDistance;
+            window.scrollTo(0, currentScrollY);
 
             const chegouFim = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8;
             if (chegouFim) {{
@@ -2073,6 +1747,7 @@ def musica(slug, uid):
             updateScrollButton();
             if (scrolling) {{
                 lastScrollTs = 0;
+                currentScrollY = window.scrollY;
                 cancelAnimationFrame(scrollFrame);
                 scrollFrame = requestAnimationFrame(scrollStep);
             }} else {{
@@ -2122,7 +1797,21 @@ def musica(slug, uid):
             return `${{newRoot}}${{mod}}`;
         }}
 
+        function simplificarAcordeJS(chord) {{
+            let base = chord.split('/')[0];
+            const rootMatch = base.match(/^([A-G][#b]?)(.*)$/);
+            if (!rootMatch) return chord;
+            
+            const root = rootMatch[1];
+            const mod = rootMatch[2];
+            
+            // Se começar com 'm' e não for 'maj' ou 'M', é menor
+            const isMinor = mod.startsWith('m') && !mod.startsWith('maj') && !mod.startsWith('M');
+            return isMinor ? (root + 'm') : root;
+        }}
+
         let currentSemitones = 0;
+        window.isSimplified = localStorage.getItem("isSimplified") === "true";
 
         function aplicarTransposicao(semitons) {{
             currentSemitones = semitons;
@@ -2131,7 +1820,10 @@ def musica(slug, uid):
             document.querySelectorAll(".chord").forEach(span => {{
                 const orig = span.dataset.originalChord;
                 if (!orig) return;
-                const newChord = transporAcordeJS(orig, semitons);
+                let newChord = transporAcordeJS(orig, semitons);
+                if (window.isSimplified) {{
+                    newChord = simplificarAcordeJS(newChord);
+                }}
                 span.dataset.chord = newChord;
                 span.firstChild.nodeValue = newChord;
                 if (typeof span.resetDiagram === "function") {{
@@ -2144,14 +1836,22 @@ def musica(slug, uid):
             if (keyLabel) {{
                 const origKey = keyLabel.dataset.originalKey;
                 if (origKey && origKey !== "—") {{
-                    keyLabel.innerText = transporAcordeJS(origKey, semitons);
+                    let keyTransposed = transporAcordeJS(origKey, semitons);
+                    if (window.isSimplified) {{
+                        keyTransposed = simplificarAcordeJS(keyTransposed);
+                    }}
+                    keyLabel.innerText = keyTransposed;
                 }}
             }}
             const keyMeta = document.getElementById("currentKeyMeta");
             if (keyMeta) {{
                 const origKey = keyMeta.dataset.originalKey;
                 if (origKey && origKey !== "—") {{
-                    keyMeta.innerText = transporAcordeJS(origKey, semitons);
+                    let keyTransposed = transporAcordeJS(origKey, semitons);
+                    if (window.isSimplified) {{
+                        keyTransposed = simplificarAcordeJS(keyTransposed);
+                    }}
+                    keyMeta.innerText = keyTransposed;
                 }}
             }}
 
@@ -2184,21 +1884,72 @@ def musica(slug, uid):
             localStorage.setItem("isLeftHanded", window.isLeftHanded);
             const btn = document.getElementById("leftHandedToggleBtn");
             if (btn) {{
-                btn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
-                btn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+                btn.classList.toggle("active", window.isLeftHanded);
             }}
             if (typeof buildAsideDictionary === 'function') {{
                 buildAsideDictionary();
             }}
         }}
 
+        function toggleSimplificar() {{
+            window.isSimplified = !window.isSimplified;
+            localStorage.setItem("isSimplified", window.isSimplified);
+            const btn = document.getElementById("simplifyToggleBtn");
+            if (btn) {{
+                btn.classList.toggle("active", window.isSimplified);
+            }}
+            aplicarTransposicao(currentSemitones);
+        }}
+
+        // Font size zoom functions
+        window.currentFontSize = parseInt(localStorage.getItem("cifraFontSize") || "15");
+
+        function applyFontSize(size) {{
+            const cifraBox = document.querySelector("pre.cifraBox");
+            if (cifraBox) {{
+                cifraBox.style.fontSize = size + "px";
+            }}
+            const label = document.getElementById("fontSizeLabel");
+            if (label) {{
+                label.innerText = size + "px";
+            }}
+        }}
+
+        function changeFontSize(delta) {{
+            window.currentFontSize = Math.max(11, Math.min(26, window.currentFontSize + delta));
+            localStorage.setItem("cifraFontSize", window.currentFontSize);
+            applyFontSize(window.currentFontSize);
+        }}
+
+        function resetFontSize() {{
+            window.currentFontSize = 15;
+            localStorage.setItem("cifraFontSize", "15");
+            applyFontSize(15);
+        }}
+
+        // Progress bar scroll listener
+        window.addEventListener("scroll", () => {{
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+            const progressBar = document.getElementById("scrollProgressBar");
+            if (progressBar) {{
+                progressBar.style.width = scrollPercent + "%";
+            }}
+        }});
+
         // Apply transposition on load based on hash/search
         document.addEventListener("DOMContentLoaded", () => {{
             const leftHandedBtn = document.getElementById("leftHandedToggleBtn");
             if (leftHandedBtn) {{
-                leftHandedBtn.innerText = window.isLeftHanded ? "Modo Canhoto: Ativado" : "Modo Canhoto: Desativado";
-                leftHandedBtn.style.background = window.isLeftHanded ? "#ff7a00" : "#374151";
+                leftHandedBtn.classList.toggle("active", window.isLeftHanded);
             }}
+            const simplifyBtn = document.getElementById("simplifyToggleBtn");
+            if (simplifyBtn) {{
+                simplifyBtn.classList.toggle("active", window.isSimplified);
+            }}
+            applyFontSize(window.currentFontSize);
+
             // If the song doesn't have a defined key, grab the first chord on the page and use it
             const keyLabel = document.getElementById("currentKeyLabel");
             const keyMeta = document.getElementById("currentKeyMeta");
@@ -2254,7 +2005,7 @@ def musica(slug, uid):
                 const urlParams = new URLSearchParams(window.location.search);
                 initialT = parseInt(urlParams.get("t") || "0");
             }}
-            if (initialT !== 0) {{
+            if (initialT !== 0 || window.isSimplified) {{
                 aplicarTransposicao(initialT);
             }}
         }});
@@ -2309,7 +2060,10 @@ def buscar_video_youtube(artista, musica, indice=5):
         "User-Agent": "Mozilla/5.0"
     }
 
-    html = requests.get(url, headers=headers).text
+    try:
+        html = requests.get(url, headers=headers, timeout=10).text
+    except Exception:
+        return None
 
     # pega TODOS os vídeos
     matches = re.findall(r"watch\?v=([a-zA-Z0-9_-]{11})", html)
@@ -2414,6 +2168,57 @@ def dicionario_page():
         #chordSearch:focus {
             border-color: #ff7a00;
             box-shadow: 0 4px 14px rgba(255, 122, 0, 0.15);
+        }
+
+        /* DARK MODE STYLES FOR DICIONARIO PAGE */
+        body.dark-mode .dictHeader h1 {
+            color: #ffffff !important;
+        }
+        body.dark-mode .dictHeader p {
+            color: #aeaeb2 !important;
+        }
+        body.dark-mode .rootBtn {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .rootBtn:hover, body.dark-mode .rootBtn.active {
+            background: #ff9f0a !important;
+            color: #ffffff !important;
+            border-color: #ff9f0a !important;
+            box-shadow: 0 4px 12px rgba(255, 159, 10, 0.2) !important;
+        }
+        body.dark-mode .chordCard {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+        }
+        body.dark-mode .chordCard:hover {
+            border-color: #ff9f0a !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+        }
+        body.dark-mode .chordCardName {
+            color: #ffffff !important;
+        }
+        body.dark-mode #chordSearch {
+            background: #1c1c1e !important;
+            border-color: #2c2c2e !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode #chordSearch:focus {
+            border-color: #ff9f0a !important;
+            box-shadow: 0 4px 14px rgba(255, 159, 10, 0.2) !important;
+        }
+        body.dark-mode #leftHandedToggleBtn {
+            background: #2c2c2e !important;
+            border: 1px solid #3a3a3c !important;
+            color: #ffffff !important;
+        }
+        body.dark-mode .chordSvgContainer svg,
+        body.dark-mode .chordCard svg,
+        body.dark-mode div.jtab svg {
+            filter: invert(0.9) contrast(1.2) !important;
         }
     </style>
 
@@ -3382,6 +3187,74 @@ def playlists_gallery():
         }
         .pub { background: #ecfdf5; color: #10b981; }
         .priv { background: #f3f4f6; color: #6b7280; }
+
+        /* DARK MODE STYLES FOR PLAYLISTS PAGE */
+        body.dark-mode .playlistsHero h1 {
+            color: #ffffff;
+        }
+        body.dark-mode .playlistsHero p {
+            color: #a1a1a6;
+        }
+        body.dark-mode .sectionTitle {
+            color: #ffffff;
+            border-bottom-color: #2c2c2e;
+        }
+        body.dark-mode .sectionTitle a {
+            background: #2c2c2e !important;
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .playlistCard {
+            background: #1c1c1e;
+            border-color: #2c2c2e;
+            color: #ffffff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        body.dark-mode .playlistCard:hover {
+            border-color: #ff9f0a;
+            box-shadow: 0 12px 30px rgba(255, 159, 10, 0.15);
+        }
+        body.dark-mode .playlistMeta {
+            color: #a1a1a6;
+        }
+        body.dark-mode .playlistFooter {
+            border-top-color: #2c2c2e;
+        }
+        body.dark-mode .playlistFooter a {
+            color: #ff9f0a !important;
+        }
+        body.dark-mode .playlistCard a {
+            color: #ffffff !important;
+        }
+        body.dark-mode .playlistCard div {
+            color: #a1a1a6 !important;
+        }
+        body.dark-mode .playlistCard span {
+            color: #a1a1a6 !important;
+        }
+        body.dark-mode .playlistCard span.badge.pub {
+            background: #1e3a2f !important;
+            color: #34d399 !important;
+        }
+        body.dark-mode .playlistCard span.badge.priv {
+            background: #2c2c2e !important;
+            color: #a1a1a6 !important;
+        }
+        body.dark-mode .playlistCard div span[style*="color:#ff7a00"] {
+            color: #ff9f0a !important;
+            background: #2c2c2e !important;
+        }
+        body.dark-mode .playlistCard div a[href*="/favoritar"] {
+            color: #ff453a !important;
+        }
+        body.dark-mode .empty-state,
+        body.dark-mode div[style*="background:rgba(255,255,255,0.4)"] {
+            background: #1c1c1e !important;
+            color: #a1a1a6 !important;
+            border-color: #2c2c2e !important;
+        }
+        body.dark-mode div[style*="background:rgba(255,255,255,0.4)"] p {
+            color: #ffffff !important;
+        }
     </style>
     
     <div class="playlistsWrapper">

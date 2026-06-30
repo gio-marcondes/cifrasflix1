@@ -360,7 +360,8 @@ body.theme-dark .primary-control {
   border-right: 1px solid var(--line);
   background: #ffffff;
   padding: 20px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 body.theme-dark .mixer-panel {
@@ -460,32 +461,98 @@ body.theme-dark .player-search-item {
 }
 
 .track-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 12px;
+  padding: 4px 8px;
   background: var(--surface);
+  transition: all 0.15s ease;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.track-row:hover {
+  border-color: rgba(255, 122, 0, 0.4);
 }
 
 .track-row.active {
   border-color: var(--teal);
+  background: var(--surface-2);
 }
 
 .track-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex: 1;
+  min-width: 134px;
+  max-width: calc(100% - 92px);
+  margin-right: 8px;
+  overflow: hidden;
+}
+
+.track-main strong {
+  display: block;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.track-main small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .track-controls {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.track-controls button {
+  width: 20px;
+  height: 20px;
+  min-height: 20px !important;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  transition: all 0.15s ease;
+}
+
+.track-controls button:hover {
+  color: var(--text);
+  border-color: var(--teal);
+}
+
+.track-controls button.is-active {
+  background: var(--teal) !important;
+  color: #fff !important;
+  border-color: var(--teal) !important;
 }
 
 .track-controls input {
-  width: 100%;
+  width: 40px;
+  height: 4px;
+  min-width: 40px !important;
+  margin: 0 0 0 2px;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--teal);
 }
 
 .track-pan {

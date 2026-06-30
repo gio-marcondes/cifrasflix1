@@ -20,6 +20,7 @@
       opacity: .78;
     }
     .version-switcher select {
+      width: 100%;
       height: 34px;
       border-radius: 10px;
       border: 1px solid rgba(148, 163, 184, .4);
@@ -29,9 +30,15 @@
       font-size: 13px;
       outline: none;
     }
+    /* Header menu alignment style overrides */
+    .player-shell {
+      margin-top: 64px;
+      min-height: calc(100vh - 64px) !important;
+    }
   </style>
 </head>
 <body class="player-page">
+  {{ header_html | safe }}
   <div class="player-shell">
     <aside class="mixer-panel">
       <div class="brand player-brand">
